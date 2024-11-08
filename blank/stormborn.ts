@@ -46,7 +46,6 @@ type SB_Sound = {
 	id: string;
 	filepath: string;
 	volume: number;
-	loop: boolean;
 	buffer: AudioBuffer | null;
 	source: AudioBufferSourceNode | null;
 };
@@ -108,8 +107,8 @@ type SB_Room = {
 		// room space
 		x: number;
 		y: number;
-		room_width: number;
-		room_height: number;
+		width: number;
+		height: number;
 		viewport_width: number; // screen space
 		viewport_height: number; // screen space
 		follow?: string;
@@ -181,8 +180,8 @@ function create_game(config: SB_Config) {
 					if (!target) {
 						console.error(`Camera target object not found: ${camera.follow}`);
 					} else {
-						camera.x = target.x - camera.room_width / 2;
-						camera.y = target.y - camera.room_height / 2;
+						camera.x = target.x - camera.width / 2;
+						camera.y = target.y - camera.height / 2;
 					}
 				}
 
@@ -194,11 +193,11 @@ function create_game(config: SB_Config) {
 				gm.ctx.translate(-camera.x, -camera.y);
 
 				// Clear the canvas
-				gm.ctx.clearRect(camera.x, camera.y, camera.room_width, camera.room_height);
+				gm.ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
 
 				// Draw the room background
 				gm.ctx.fillStyle = room.bg_color;
-				gm.ctx.fillRect(camera.x, camera.y, camera.room_width, camera.room_height);
+				gm.ctx.fillRect(camera.x, camera.y, camera.width, camera.height);
 
 				// Sort instances by z-index
 				const sorted_instances = Object.values(room.instances).sort((a, b) => a.z - b.z);
@@ -285,8 +284,8 @@ function create_game(config: SB_Config) {
 			const room = gm.rooms[gm.current_room];
 			const camera = room.camera;
 
-			const scale_x = camera.room_width / camera.viewport_width;
-			const scale_y = camera.room_height / camera.viewport_height;
+			const scale_x = camera.width / camera.viewport_width;
+			const scale_y = camera.height / camera.viewport_height;
 
 			const mouse_x = (e.clientX - rect.left) * scale_x;
 			const mouse_y = (e.clientY - rect.top) * scale_y;
@@ -302,8 +301,8 @@ function create_game(config: SB_Config) {
 			const room = gm.rooms[gm.current_room];
 			const camera = room.camera;
 
-			const scale_x = camera.room_width / camera.viewport_width;
-			const scale_y = camera.room_height / camera.viewport_height;
+			const scale_x = camera.width / camera.viewport_width;
+			const scale_y = camera.height / camera.viewport_height;
 
 			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
 			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
@@ -318,8 +317,8 @@ function create_game(config: SB_Config) {
 			const room = gm.rooms[gm.current_room];
 			const camera = room.camera;
 
-			const scale_x = camera.room_width / camera.viewport_width;
-			const scale_y = camera.room_height / camera.viewport_height;
+			const scale_x = camera.width / camera.viewport_width;
+			const scale_y = camera.height / camera.viewport_height;
 
 			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
 			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
@@ -447,8 +446,8 @@ function create_game(config: SB_Config) {
 			camera: {
 				x: 0,
 				y: 0,
-				room_width: 800,
-				room_height: 600,
+				width: 800,
+				height: 600,
 				viewport_width: 800,
 				viewport_height: 600,
 			},
@@ -533,7 +532,7 @@ function create_game(config: SB_Config) {
 	// Game Utils
 	//
 
-	function instances_collided(a: SB_Instance, b: SB_Instance): boolean {
+	function instances_colliding(a: SB_Instance, b: SB_Instance): boolean {
 		if (!a || !b) return false;
 
 		if (a.collision_mask.type === "rect" && b.collision_mask.type === "rect") {
@@ -578,7 +577,7 @@ function create_game(config: SB_Config) {
 		}
 	}
 
-	function instance_collision(instance: SB_Instance, obj_id: string): SB_Instance | undefined {
+	function objects_colliding(instance: SB_Instance, obj_id: string): SB_Instance | undefined {
 		const room = gm.rooms[gm.current_room!];
 
 		if (!instance) return undefined;
@@ -588,7 +587,7 @@ function create_game(config: SB_Config) {
 
 		for (const other_id of potential_collisions) {
 			const other = room.instances[other_id];
-			if (instances_collided(instance, other)) {
+			if (instances_colliding(instance, other)) {
 				return other;
 			}
 		}
@@ -601,7 +600,7 @@ function create_game(config: SB_Config) {
 		room.instance_refs[key] = instance.id;
 	}
 
-	function instance_ref(key: string): SB_Instance | undefined {
+	function instance_get(key: string): SB_Instance | undefined {
 		const room = gm.rooms[gm.current_room!];
 		return room.instances[room.instance_refs[key]];
 	}
@@ -703,7 +702,7 @@ function create_game(config: SB_Config) {
 		return instance.image_index === sprite.frames - 1;
 	}
 
-	function play_sound(sound_id: string) {
+	function play_sound(sound_id: string, opts = { volume: 1, loop: false }) {
 		const sound = gm.sounds[sound_id];
 		if (!sound || !sound.buffer) {
 			console.error(`Sound ${sound_id} not found or not loaded`);
@@ -718,7 +717,7 @@ function create_game(config: SB_Config) {
 		// Create a new source
 		sound.source = gm.audio_context.createBufferSource();
 		sound.source.buffer = sound.buffer;
-		sound.source.loop = sound.loop;
+		sound.source.loop = opts.loop;
 
 		// Create a gain node for this sound
 		const gain_node = gm.audio_context.createGain();
@@ -779,8 +778,8 @@ function create_game(config: SB_Config) {
 		room.instances = {};
 
 		// Update canvas size
-		gm.canvas.width = room.camera.room_width * device_pixel_ratio;
-		gm.canvas.height = room.camera.room_height * device_pixel_ratio;
+		gm.canvas.width = room.camera.width * device_pixel_ratio;
+		gm.canvas.height = room.camera.height * device_pixel_ratio;
 		gm.canvas.style.width = `${room.camera.viewport_width}px`;
 		gm.canvas.style.height = `${room.camera.viewport_height}px`;
 
@@ -795,6 +794,10 @@ function create_game(config: SB_Config) {
 
 		// Run room start event
 		call_objects_room_start(room_id);
+	}
+
+	function room_current() {
+		return gm.current_room ? gm.rooms[gm.current_room] : null;
 	}
 
 	function call_objects_room_start(room_id: string): void {
@@ -825,18 +828,19 @@ function create_game(config: SB_Config) {
 		create_snd,
 		run_game,
 		room_goto,
+		room_current,
 		play_sound,
 		stop_sound,
 		sound_volume,
 		master_volume,
 		instance_save,
-		instance_ref,
-		instances_collided,
-		instance_collision,
+		instance_get,
+		instances_colliding,
 		instance_create,
 		instance_count,
 		instance_destroy,
 		instance_exists,
+		objects_colliding,
 		animation_ended,
 	};
 }
