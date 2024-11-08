@@ -1,4 +1,4 @@
-import { readdir, stat, writeFile } from "node:fs/promises";
+import { readdir, stat, writeFile, watch } from "node:fs/promises";
 import { serve, file } from "bun";
 import { join, dirname } from "path";
 import { spawn } from "child_process";
@@ -26,22 +26,37 @@ async function get_js_files(dir_path: string): Promise<string[]> {
 }
 
 async function update_html_imports(js_files: string[]): Promise<void> {
-	const index_path = "../index.html";
-	const html_content = await Bun.file(index_path).text();
+	const template_path = "template.html";
+	const html_content = await Bun.file(template_path).text();
 
-	// Create module import strings
 	const import_strings = js_files
-		.map((file) => file.replace("../", ""))
-		.map((file) => `    <script type="module" src="${file}"></script>`);
+		.map((file) => file.replace("", ""))
+		.map((file, i) => `${i === 0 ? "" : "\t"}\t<script type="module" src="${file}"></script>`);
 
-	// Replace existing imports or add new ones before body end
 	const updated_content = html_content.replace(/<\/body>/, `${import_strings.join("\n")}\n</body>`);
 
-	await writeFile(index_path, updated_content);
+	await writeFile("index.html", updated_content);
+	console.log("Updated index.html with new imports");
+}
+
+async function watch_code_directory(): Promise<void> {
+	const code_path = "code";
+
+	try {
+		const watcher = watch(code_path, { recursive: true });
+
+		for await (const event of watcher) {
+			console.log(`Detected ${event.eventType} in code directory`);
+			const js_files = await get_js_files(code_path);
+			await update_html_imports(js_files);
+		}
+	} catch (error) {
+		console.error("Error watching directory:", error);
+	}
 }
 
 async function start_build_process(): Promise<void> {
-	const build_process = spawn("bun", ["build", "../code/stormborn.ts", "--outfile=./code/stormborn.js", "--watch"], {
+	const build_process = spawn("bun", ["build", "stormborn.ts", "--outfile=stormborn.js", "--watch"], {
 		stdio: "inherit",
 	});
 
@@ -52,10 +67,10 @@ async function start_build_process(): Promise<void> {
 
 async function start_server(): Promise<void> {
 	const server = serve({
-		port: 6669,
+		port: 1961,
 		fetch(req) {
 			const url = new URL(req.url);
-			const file_path = url.pathname === "/" ? "../index.html" : "." + url.pathname;
+			const file_path = url.pathname === "/" ? "index.html" : "." + url.pathname;
 
 			return new Response(file(file_path));
 		},
@@ -66,10 +81,14 @@ async function start_server(): Promise<void> {
 
 async function main(): Promise<void> {
 	try {
-		const js_files = await get_js_files("../code");
-
-		// Update index.html with module imports
+		// Initial update of index.html
+		const js_files = await get_js_files("code");
 		await update_html_imports(js_files);
+
+		// Start file watcher
+		watch_code_directory().catch((error) => {
+			console.error("Watcher error:", error);
+		});
 
 		// Start the build process
 		await start_build_process();

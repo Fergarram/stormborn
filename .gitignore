@@ -211,6 +211,3 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-
-# Stormborn
-*/export
