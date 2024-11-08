@@ -1,4 +1,4 @@
-create_spr({
+create_sprite({
 	id: "spr_player",
 	filepath: "assets/sprites/player.png",
 	frame_width: 32,
@@ -8,13 +8,13 @@ create_spr({
 	origin_y: 16,
 });
 
-create_snd({
+create_sound({
 	id: "snd_shoot",
 	filepath: "assets/sounds/pop.mp3",
 	volume: 0.5,
 });
 
-create_obj({
+create_object({
 	id: "obj_player",
 	sprite: "spr_player",
 	collision_mask: { type: "circle", geom: [9] },

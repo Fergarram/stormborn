@@ -1,0 +1,9 @@
+{
+	"scripts": {
+		"compile": "bun build ./cli.ts --compile --outfile stormborn"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"@types/bun": "^1.1.13"
+	}
+}

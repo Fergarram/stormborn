@@ -1,8 +1,3 @@
-/*
-BUILD:
-bun build ./stormborn.ts --outfile=./stormborn.js --watch
-*/
-
 type SB_Config = {
 	title: string;
 	description: string;
@@ -28,6 +23,7 @@ type SB_Game = {
 	objects: Record<string, SB_Object>;
 	sprites: Record<string, SB_Sprite>;
 	rooms: Record<string, SB_Room>;
+	tile_layers: Record<string, SB_TileLayer>;
 	images: Record<string, HTMLImageElement>;
 	sounds: Record<string, SB_Sound>;
 };
@@ -53,7 +49,7 @@ type SB_Sound = {
 type SB_Object = {
 	id: string;
 	collision_mask: SB_Mask;
-	is_tile: boolean;
+	tile_layer: string | null;
 	sprite: string | null;
 	setup?: (obj_id: string) => void;
 	create?: (self: SB_Instance) => void;
@@ -76,6 +72,7 @@ type SB_Instance = {
 	y: number;
 	z: number;
 	collision_mask: SB_Mask;
+	tile_layer: string | null;
 	sprite: string | null;
 	image_index: number;
 	direction: number;
@@ -98,7 +95,7 @@ type SB_Room = {
 	setup: () => {
 		x: number;
 		y: number;
-		obj: string;
+		id: string;
 	}[];
 	instances: Record<string, SB_Instance>;
 	instance_refs: Record<string, string>;
@@ -113,6 +110,20 @@ type SB_Room = {
 		viewport_height: number; // screen space
 		follow?: string;
 	};
+};
+
+type SB_TileLayer = {
+	id: string;
+	width: number;
+	height: number;
+	grid_size: number;
+	tiles: {
+		sprite: string;
+		frame_index: number;
+		x: number;
+		y: number;
+	}[];
+	image?: ImageBitmap;
 };
 
 type SB_Mask = {
@@ -136,6 +147,7 @@ function create_game(config: SB_Config) {
 		objects: {},
 		sprites: {},
 		rooms: {},
+		tile_layers: {},
 		sounds: {},
 		images: {},
 	};
@@ -155,103 +167,6 @@ function create_game(config: SB_Config) {
 
 		gm.running = true;
 
-		// @ts-ignore
-		window.gm = gm;
-
-		function game_loop(timestamp: number): void {
-			if (!gm.running || !gm.config || !gm.current_room) {
-				requestAnimationFrame(game_loop);
-				return;
-			}
-
-			const room = gm.rooms[gm.current_room];
-			const frame_interval = 1000 / room.fps;
-
-			// Check if enough time has passed since the last frame
-			if (timestamp - last_frame_time >= frame_interval) {
-				const dt = timestamp - last_frame_time;
-				last_frame_time = timestamp;
-				const camera = room.camera;
-
-				// Update camera position if following an object
-				if (camera.follow) {
-					const inst_id = room.object_index[camera.follow]?.[0];
-					const target = room.instances[inst_id];
-					if (!target) {
-						console.error(`Camera target object not found: ${camera.follow}`);
-					} else {
-						camera.x = target.x - camera.width / 2;
-						camera.y = target.y - camera.height / 2;
-					}
-				}
-
-				gm.ctx.imageSmoothingEnabled = gm.config.image_smoothing_enabled;
-				gm.ctx.imageSmoothingQuality = gm.config.image_smoothing_enabled ? "high" : "low";
-
-				gm.ctx.save();
-				gm.ctx.scale(device_pixel_ratio, device_pixel_ratio);
-				gm.ctx.translate(-camera.x, -camera.y);
-
-				// Clear the canvas
-				gm.ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
-
-				// Draw the room background
-				gm.ctx.fillStyle = room.bg_color;
-				gm.ctx.fillRect(camera.x, camera.y, camera.width, camera.height);
-
-				// Sort instances by z-index
-				const sorted_instances = Object.values(room.instances).sort((a, b) => a.z - b.z);
-
-				// Draw all objects in the current room using a for loop
-				for (const instance of sorted_instances) {
-					const obj = gm.objects[instance.object_id];
-
-					if (obj.step) {
-						obj.step(dt, instance);
-					}
-
-					const mouse_over_instance = point_in_instance(instance, gm.mouse_x, gm.mouse_y);
-
-					if (mouse_over_instance && obj.mouse_over) {
-						obj.mouse_over(instance);
-					} else if (!mouse_over_instance && obj.mouse_out) {
-						obj.mouse_out(instance);
-					}
-
-					if (mouse_over_instance) {
-						if (gm.mouse_buttons_pressed[0] && obj.mouse_down) {
-							obj.mouse_down(instance);
-						}
-						if (!gm.mouse_buttons_pressed[0] && obj.mouse_up) {
-							obj.mouse_up(instance);
-						}
-					}
-
-					if (obj.animation_end && animation_ended(instance)) {
-						obj.animation_end(instance);
-					}
-
-					// @TODO: Implement culled drawing, meaning only draw instances that are visible on screen
-					if (instance.sprite) {
-						draw_sprite(instance);
-					}
-
-					if (obj.draw) {
-						obj.draw(instance);
-					}
-
-					// Draw collision masks if debug mode is enabled
-					if (gm.config && gm.config.debug) {
-						draw_collision_mask(instance);
-					}
-				}
-
-				gm.ctx.restore();
-			}
-
-			requestAnimationFrame(game_loop);
-		}
-
 		// Set up canvas
 		const canvas = document.createElement("canvas");
 		gm.config.container.appendChild(canvas);
@@ -265,18 +180,16 @@ function create_game(config: SB_Config) {
 		// Set up event listeners
 		window.addEventListener("keydown", (e) => {
 			if (!gm.running) return;
-
 			const k = e.key === " " ? "Space" : e.key;
-
 			gm.keys_pressed[k] = true;
 		});
+
 		window.addEventListener("keyup", (e) => {
 			if (!gm.running) return;
-
 			const k = e.key === " " ? "Space" : e.key;
-
 			gm.keys_pressed[k] = false;
 		});
+
 		canvas.addEventListener("mousemove", (e) => {
 			if (!gm.running || !gm.current_room) return;
 
@@ -358,14 +271,174 @@ function create_game(config: SB_Config) {
 			}),
 		];
 
-		// Start the game
-		Promise.all(asset_promises).then(() => {
+		function render_tile_layers(layer: SB_TileLayer): Promise<ImageBitmap> {
+			// Create an offscreen canvas
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d")!;
+
+			// Set canvas size to layer dimensions
+			canvas.width = layer.width * layer.grid_size;
+			canvas.height = layer.height * layer.grid_size;
+
+			// Create promises for all tile drawings
+			const draw_promises = layer.tiles.map((tile) => {
+				return new Promise<void>((resolve) => {
+					const sprite = gm.sprites[tile.sprite];
+					const image = gm.images[tile.sprite];
+
+					if (!sprite || !image) {
+						console.error(`Sprite ${tile.sprite} not found for tile layer ${layer.id}`);
+						resolve();
+						return;
+					}
+
+					const source_x = tile.frame_index * sprite.frame_width;
+					const source_y = 0;
+
+					if (!gm.config) {
+						throw new Error("Game config not found");
+					}
+
+					ctx.imageSmoothingEnabled = gm.config.image_smoothing_enabled;
+					gm.ctx.imageSmoothingQuality = gm.config.image_smoothing_enabled ? "high" : "low";
+
+					ctx.drawImage(
+						image,
+						source_x,
+						source_y,
+						sprite.frame_width,
+						sprite.frame_height,
+						tile.x,
+						tile.y,
+						sprite.frame_width,
+						sprite.frame_height,
+					);
+					resolve();
+				});
+			});
+
+			// Return a promise that resolves with the image data
+			return Promise.all(draw_promises).then(async () => {
+				const image_data = ctx.getImageData(0, 0, layer.width * layer.grid_size, layer.height * layer.grid_size);
+				return await createImageBitmap(image_data);
+			});
+		}
+
+		function game_loop(timestamp: number): void {
+			if (!gm.running || !gm.config || !gm.current_room) {
+				requestAnimationFrame(game_loop);
+				return;
+			}
+
+			const room = gm.rooms[gm.current_room];
+			const frame_interval = 1000 / (room.fps * 2); // I have no clue why it's * 2, but it works
+
+			// Check if enough time has passed since the last frame
+			if (timestamp - last_frame_time >= frame_interval) {
+				const dt = timestamp - last_frame_time;
+				last_frame_time = timestamp;
+				const camera = room.camera;
+
+				// Update camera position if following an object
+				if (camera.follow) {
+					const inst_id = room.object_index[camera.follow]?.[0];
+					const target = room.instances[inst_id];
+					if (!target) {
+						console.error(`Camera target object not found: ${camera.follow}`);
+					} else {
+						camera.x = target.x - camera.width / 2;
+						camera.y = target.y - camera.height / 2;
+					}
+				}
+
+				gm.ctx.imageSmoothingEnabled = gm.config.image_smoothing_enabled;
+				gm.ctx.imageSmoothingQuality = gm.config.image_smoothing_enabled ? "high" : "low";
+
+				gm.ctx.save();
+				gm.ctx.scale(device_pixel_ratio, device_pixel_ratio);
+				gm.ctx.translate(-camera.x, -camera.y);
+
+				// Clear the canvas
+				gm.ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
+
+				// Draw the room background
+				gm.ctx.fillStyle = room.bg_color;
+				gm.ctx.fillRect(camera.x, camera.y, camera.width, camera.height);
+
+				// Sort instances by z-index
+				const sorted_instances = Object.values(room.instances).sort((a, b) => a.z - b.z);
+
+				// Draw all objects in the current room using a for loop
+				for (const instance of sorted_instances) {
+					const obj = gm.objects[instance.object_id];
+
+					if (obj.step) {
+						obj.step(dt, instance);
+					}
+
+					const mouse_over_instance = point_in_instance(instance, gm.mouse_x, gm.mouse_y);
+
+					if (mouse_over_instance && obj.mouse_over) {
+						obj.mouse_over(instance);
+					} else if (!mouse_over_instance && obj.mouse_out) {
+						obj.mouse_out(instance);
+					}
+
+					if (mouse_over_instance) {
+						if (gm.mouse_buttons_pressed[0] && obj.mouse_down) {
+							obj.mouse_down(instance);
+						}
+						if (!gm.mouse_buttons_pressed[0] && obj.mouse_up) {
+							obj.mouse_up(instance);
+						}
+					}
+
+					if (obj.animation_end && animation_ended(instance)) {
+						obj.animation_end(instance);
+					}
+
+					// @TODO: Implement culled drawing, meaning only draw instances that are visible on screen
+					if (instance.sprite) {
+						draw_sprite(instance);
+					} else if (instance.tile_layer) {
+						draw_layer(instance);
+					}
+
+					if (obj.draw) {
+						obj.draw(instance);
+					}
+
+					// Draw collision masks if debug mode is enabled
+					if (gm.config && gm.config.debug) {
+						draw_collision_mask(instance);
+					}
+				}
+
+				gm.ctx.restore();
+			}
+
 			requestAnimationFrame(game_loop);
-			start_callback(gm);
-		});
+		}
+
+		// Start the game
+		Promise.all(asset_promises)
+			.then(() => {
+				// Now that all sprites are loaded, render tile layers
+				return Promise.all(
+					Object.values(gm.tile_layers).map((layer) =>
+						render_tile_layers(layer).then((image_data) => {
+							layer.image = image_data;
+						}),
+					),
+				);
+			})
+			.then(() => {
+				requestAnimationFrame(game_loop);
+				start_callback(gm);
+			});
 	}
 
-	function create_obj(obj: Partial<SB_Object>) {
+	function create_object(obj: Partial<SB_Object>) {
 		if (!obj.id) {
 			throw new Error("Object ID is required");
 		}
@@ -373,7 +446,7 @@ function create_game(config: SB_Config) {
 		const default_obj: SB_Object = {
 			id: "",
 			collision_mask: { type: "rect", geom: [0, 0, 0, 0] },
-			is_tile: false,
+			tile_layer: null,
 			sprite: null,
 		};
 
@@ -382,7 +455,7 @@ function create_game(config: SB_Config) {
 		gm.objects[merged_obj.id] = merged_obj;
 	}
 
-	function create_snd(sound: Partial<SB_Sound>) {
+	function create_sound(sound: Partial<SB_Sound>) {
 		if (!sound.id) {
 			throw new Error("Sound ID is required");
 		}
@@ -395,7 +468,6 @@ function create_game(config: SB_Config) {
 			id: "",
 			filepath: "",
 			volume: 1,
-			loop: false,
 			buffer: null,
 			source: null,
 		};
@@ -404,7 +476,7 @@ function create_game(config: SB_Config) {
 		gm.sounds[merged_sound.id] = merged_sound;
 	}
 
-	function create_spr(sprite: Partial<SB_Sprite>) {
+	function create_sprite(sprite: Partial<SB_Sprite>) {
 		if (!sprite.id) {
 			throw new Error("Sprite ID is required");
 		}
@@ -455,6 +527,23 @@ function create_game(config: SB_Config) {
 
 		const merged_room = { ...default_room, ...room };
 		gm.rooms[merged_room.id] = merged_room;
+	}
+
+	function create_layer(layer: Partial<SB_TileLayer>) {
+		if (!layer.id) {
+			throw new Error("Layer ID is required");
+		}
+
+		const default_layer: SB_TileLayer = {
+			id: "",
+			width: 0,
+			height: 0,
+			grid_size: 32,
+			tiles: [],
+		};
+
+		const merged_layer = { ...default_layer, ...layer };
+		gm.tile_layers[merged_layer.id] = merged_layer;
 	}
 
 	//
@@ -526,6 +615,24 @@ function create_game(config: SB_Config) {
 			sprite.frame_height,
 		);
 		ctx.restore();
+	}
+
+	function draw_layer(instance: SB_Instance): void {
+		if (!instance.tile_layer) return;
+
+		const layer = gm.tile_layers[instance.tile_layer];
+		if (!layer || !layer.image) return;
+
+		gm.ctx.save();
+
+		gm.ctx.translate(instance.x, instance.y);
+		gm.ctx.rotate((instance.image_angle * Math.PI) / 180);
+		gm.ctx.scale(instance.image_scale_x, instance.image_scale_y);
+		gm.ctx.globalAlpha = instance.image_alpha;
+
+		gm.ctx.drawImage(layer.image, 0, 0, layer.width * layer.grid_size, layer.height * layer.grid_size);
+
+		gm.ctx.restore();
 	}
 
 	//
@@ -624,6 +731,7 @@ function create_game(config: SB_Config) {
 			y: 0,
 			z: 0,
 			collision_mask: obj.collision_mask,
+			tile_layer: obj.tile_layer,
 			sprite: obj.sprite,
 			image_index: 0,
 			direction: 0,
@@ -785,7 +893,7 @@ function create_game(config: SB_Config) {
 
 		// Initialize new room
 		room.setup().forEach((item) => {
-			const instance = instance_create(item.obj);
+			const instance = instance_create(item.id);
 			if (instance) {
 				instance.x = item.x;
 				instance.y = item.y;
@@ -822,10 +930,11 @@ function create_game(config: SB_Config) {
 
 	return {
 		gm,
-		create_obj,
-		create_spr,
+		create_object,
+		create_sprite,
 		create_room,
-		create_snd,
+		create_layer,
+		create_sound,
 		run_game,
 		room_goto,
 		room_current,
