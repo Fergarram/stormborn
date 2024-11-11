@@ -109,35 +109,29 @@ function create_game(config) {
         });
       })
     ];
-    function render_tile_layers(layer) {
+    async function render_tile_layers(layer) {
       const canvas2 = document.createElement("canvas");
       const ctx = canvas2.getContext("2d");
-      canvas2.width = layer.width * layer.grid_size;
-      canvas2.height = layer.height * layer.grid_size;
-      const draw_promises = layer.tiles.map((tile) => {
-        return new Promise((resolve) => {
-          const sprite = gm.sprites[tile.sprite];
-          const image = gm.images[tile.sprite];
-          if (!sprite || !image) {
-            console.error(`Sprite ${tile.sprite} not found for tile layer ${layer.id}`);
-            resolve();
-            return;
-          }
-          const source_x = tile.frame_index * sprite.frame_width;
-          const source_y = 0;
-          if (!gm.config) {
-            throw new Error("Game config not found");
-          }
-          ctx.imageSmoothingEnabled = gm.config.image_smoothing_enabled;
-          gm.ctx.imageSmoothingQuality = gm.config.image_smoothing_enabled ? "high" : "low";
-          ctx.drawImage(image, source_x, source_y, sprite.frame_width, sprite.frame_height, tile.x, tile.y, sprite.frame_width, sprite.frame_height);
-          resolve();
-        });
-      });
-      return Promise.all(draw_promises).then(async () => {
-        const image_data = ctx.getImageData(0, 0, layer.width * layer.grid_size, layer.height * layer.grid_size);
-        return await createImageBitmap(image_data);
-      });
+      canvas2.width = layer.cols * layer.grid_size;
+      canvas2.height = layer.rows * layer.grid_size;
+      for (const tile of layer.tiles) {
+        const sprite = gm.sprites[tile.sprite];
+        const image = gm.images[tile.sprite];
+        if (!sprite || !image) {
+          console.error(`Sprite ${tile.sprite} not found for tile layer ${layer.id}`);
+          continue;
+        }
+        const source_x = tile.frame_index * sprite.frame_width;
+        const source_y = 0;
+        if (!gm.config) {
+          throw new Error("Game config not found");
+        }
+        ctx.imageSmoothingEnabled = gm.config.image_smoothing_enabled;
+        gm.ctx.imageSmoothingQuality = gm.config.image_smoothing_enabled ? "high" : "low";
+        ctx.drawImage(image, source_x, source_y, sprite.frame_width, sprite.frame_height, tile.x * layer.grid_size, tile.y * layer.grid_size, sprite.frame_width, sprite.frame_height);
+      }
+      const image_data = ctx.getImageData(0, 0, layer.cols * layer.grid_size, layer.rows * layer.grid_size);
+      return await createImageBitmap(image_data);
     }
     function game_loop(timestamp) {
       if (!gm.running || !gm.config || !gm.current_room) {
@@ -297,8 +291,8 @@ function create_game(config) {
     }
     const default_layer = {
       id: "",
-      width: 0,
-      height: 0,
+      cols: 0,
+      rows: 0,
       grid_size: 32,
       tiles: []
     };
@@ -362,7 +356,7 @@ function create_game(config) {
     gm.ctx.rotate(instance.image_angle * Math.PI / 180);
     gm.ctx.scale(instance.image_scale_x, instance.image_scale_y);
     gm.ctx.globalAlpha = instance.image_alpha;
-    gm.ctx.drawImage(layer.image, 0, 0, layer.width * layer.grid_size, layer.height * layer.grid_size);
+    gm.ctx.drawImage(layer.image, 0, 0, layer.cols * layer.grid_size, layer.rows * layer.grid_size);
     gm.ctx.restore();
   }
   function instances_colliding(a, b) {
@@ -562,8 +556,12 @@ function create_game(config) {
     room.setup().forEach((item) => {
       const instance = instance_create(item.id);
       if (instance) {
-        instance.x = item.x;
-        instance.y = item.y;
+        if (item.x !== undefined)
+          instance.x = item.x;
+        if (item.y !== undefined)
+          instance.y = item.y;
+        if (item.z !== undefined)
+          instance.z = item.z;
       }
     });
     call_objects_room_start(room_id);

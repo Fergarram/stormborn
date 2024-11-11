@@ -95,6 +95,7 @@ type SB_Room = {
 	setup: () => {
 		x: number;
 		y: number;
+		z: number;
 		id: string;
 	}[];
 	instances: Record<string, SB_Instance>;
@@ -114,8 +115,8 @@ type SB_Room = {
 
 type SB_TileLayer = {
 	id: string;
-	width: number;
-	height: number;
+	cols: number;
+	rows: number;
 	grid_size: number;
 	tiles: {
 		sprite: string;
@@ -271,57 +272,46 @@ function create_game(config: SB_Config) {
 			}),
 		];
 
-		function render_tile_layers(layer: SB_TileLayer): Promise<ImageBitmap> {
-			// Create an offscreen canvas
+		async function render_tile_layers(layer: SB_TileLayer): Promise<ImageBitmap> {
 			const canvas = document.createElement("canvas");
 			const ctx = canvas.getContext("2d")!;
+			canvas.width = layer.cols * layer.grid_size;
+			canvas.height = layer.rows * layer.grid_size;
 
-			// Set canvas size to layer dimensions
-			canvas.width = layer.width * layer.grid_size;
-			canvas.height = layer.height * layer.grid_size;
+			for (const tile of layer.tiles) {
+				const sprite = gm.sprites[tile.sprite];
+				const image = gm.images[tile.sprite];
 
-			// Create promises for all tile drawings
-			const draw_promises = layer.tiles.map((tile) => {
-				return new Promise<void>((resolve) => {
-					const sprite = gm.sprites[tile.sprite];
-					const image = gm.images[tile.sprite];
+				if (!sprite || !image) {
+					console.error(`Sprite ${tile.sprite} not found for tile layer ${layer.id}`);
+					continue;
+				}
 
-					if (!sprite || !image) {
-						console.error(`Sprite ${tile.sprite} not found for tile layer ${layer.id}`);
-						resolve();
-						return;
-					}
+				const source_x = tile.frame_index * sprite.frame_width;
+				const source_y = 0;
 
-					const source_x = tile.frame_index * sprite.frame_width;
-					const source_y = 0;
+				if (!gm.config) {
+					throw new Error("Game config not found");
+				}
 
-					if (!gm.config) {
-						throw new Error("Game config not found");
-					}
+				ctx.imageSmoothingEnabled = gm.config.image_smoothing_enabled;
+				gm.ctx.imageSmoothingQuality = gm.config.image_smoothing_enabled ? "high" : "low";
 
-					ctx.imageSmoothingEnabled = gm.config.image_smoothing_enabled;
-					gm.ctx.imageSmoothingQuality = gm.config.image_smoothing_enabled ? "high" : "low";
+				ctx.drawImage(
+					image,
+					source_x,
+					source_y,
+					sprite.frame_width,
+					sprite.frame_height,
+					tile.x * layer.grid_size,
+					tile.y * layer.grid_size,
+					sprite.frame_width,
+					sprite.frame_height,
+				);
+			}
 
-					ctx.drawImage(
-						image,
-						source_x,
-						source_y,
-						sprite.frame_width,
-						sprite.frame_height,
-						tile.x,
-						tile.y,
-						sprite.frame_width,
-						sprite.frame_height,
-					);
-					resolve();
-				});
-			});
-
-			// Return a promise that resolves with the image data
-			return Promise.all(draw_promises).then(async () => {
-				const image_data = ctx.getImageData(0, 0, layer.width * layer.grid_size, layer.height * layer.grid_size);
-				return await createImageBitmap(image_data);
-			});
+			const image_data = ctx.getImageData(0, 0, layer.cols * layer.grid_size, layer.rows * layer.grid_size);
+			return await createImageBitmap(image_data);
 		}
 
 		function game_loop(timestamp: number): void {
@@ -536,8 +526,8 @@ function create_game(config: SB_Config) {
 
 		const default_layer: SB_TileLayer = {
 			id: "",
-			width: 0,
-			height: 0,
+			cols: 0,
+			rows: 0,
 			grid_size: 32,
 			tiles: [],
 		};
@@ -630,7 +620,7 @@ function create_game(config: SB_Config) {
 		gm.ctx.scale(instance.image_scale_x, instance.image_scale_y);
 		gm.ctx.globalAlpha = instance.image_alpha;
 
-		gm.ctx.drawImage(layer.image, 0, 0, layer.width * layer.grid_size, layer.height * layer.grid_size);
+		gm.ctx.drawImage(layer.image, 0, 0, layer.cols * layer.grid_size, layer.rows * layer.grid_size);
 
 		gm.ctx.restore();
 	}
@@ -895,8 +885,9 @@ function create_game(config: SB_Config) {
 		room.setup().forEach((item) => {
 			const instance = instance_create(item.id);
 			if (instance) {
-				instance.x = item.x;
-				instance.y = item.y;
+				if (item.x !== undefined) instance.x = item.x;
+				if (item.y !== undefined) instance.y = item.y;
+				if (item.z !== undefined) instance.z = item.z;
 			}
 		});
 
