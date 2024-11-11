@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" href="assets/icon.png" type="image/png" />
+		<style>
+			/*
+				Font: Ruge Boogie
+				How to use:
+				1. Download the font from https://www.1001fonts.com/ruge-boogie-font.html
+				2. Place the font in the assets/fonts folder
+				3. Uncomment the code below
+		 	*/
+			/* @font-face {
+				font-family: "RugeBoogie";
+				src: url("assets/fonts/RugeBoogie-Regular.ttf") format("truetype");
+				font-weight: normal;
+				font-style: normal;
+			} */
+
+			/* Don't touch this unless you know what you're doing. */
+			body,
+			html {
+				margin: 0;
+				padding: 0;
+				width: 100%;
+				height: 100%;
+				background: #808080;
+			}
+
+			/* Don't touch this unless you know what you're doing. */
+			canvas {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="game" style="position: fixed; left: 0; top: 0; width: 100vw; height: 100vh"></div>
+		<script type="module" src="stormborn.js"></script>
+		<script type="module" src="index.js"></script>
+		<script type="module" src="code\objects\obj_player.js"></script>
+		<script type="module" src="code\rooms\rm_main.js"></script>
+		<script type="module" src="code\sounds\snd_pop.js"></script>
+		<script type="module" src="code\sprites\spr_player.js"></script>
+		<script type="module" src="code\sprites\spr_tile.js"></script>
+		<script type="module" src="code\tiles\tl_main.js"></script>
+</body>
+</html>
