@@ -392,16 +392,17 @@ function create_game(config) {
   }
   function objects_colliding(instance, obj_id) {
     const room = gm.rooms[gm.current_room];
+    const colliding_instances = [];
     if (!instance)
-      return;
+      return colliding_instances;
     const potential_collisions = room.object_index[obj_id] || [];
     for (const other_id of potential_collisions) {
       const other = room.instances[other_id];
       if (instances_colliding(instance, other)) {
-        return other;
+        colliding_instances.push(other);
       }
     }
-    return;
+    return colliding_instances;
   }
   function instance_save(key, instance) {
     const room = gm.rooms[gm.current_room];
@@ -562,6 +563,8 @@ function create_game(config) {
           instance.y = item.y;
         if (item.z !== undefined)
           instance.z = item.z;
+        if (item.mask !== undefined)
+          instance.collision_mask = item.mask;
       }
     });
     call_objects_room_start(room_id);

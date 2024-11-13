@@ -1,10 +1,24 @@
+create_sprite({
+	id: "spr_coin",
+	filepath: "assets/sprites/coin.png",
+	frame_width: 6,
+	frame_height: 8,
+	frames: 1,
+	origin_x: 3,
+	origin_y: 4,
+});
+
 create_object({
-	id: "obj_player",
-	sprite: "spr_player",
-	collision_mask: { type: "circle", geom: [9] },
-	create: (self) => {
-		self.max_speed = 3;
-		instance_save("inst_player", self);
+	id: "obj_coin",
+	sprite: "spr_coin",
+	collision_mask: {
+		type: "rect",
+		geom: [-3, -4, 6, 8],
 	},
-	step: (dt, self) => {},
+	create: (self) => {},
+	step: (dt, self) => {
+		if (objects_colliding(self, "obj_player").length > 0) {
+			instance_destroy(self);
+		}
+	},
 });

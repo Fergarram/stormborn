@@ -1,10 +1,26 @@
+create_sprite({
+	id: "spr_brick",
+	filepath: "assets/sprites/brick.png",
+	frame_width: gm.TILE_SIZE,
+	frame_height: gm.TILE_SIZE,
+	frames: 1,
+	origin_x: 0,
+	origin_y: 0,
+});
+
 create_object({
-	id: "obj_player",
-	sprite: "spr_player",
-	collision_mask: { type: "circle", geom: [9] },
-	create: (self) => {
-		self.max_speed = 3;
-		instance_save("inst_player", self);
+	id: "obj_brick",
+	sprite: "spr_brick",
+	collision_mask: {
+		type: "rect",
+		geom: [0, 0, gm.TILE_SIZE, gm.TILE_SIZE],
 	},
-	step: (dt, self) => {},
+	create: (self) => {
+		self.was_hit = false;
+	},
+	step: (dt, self) => {
+		if (self.was_hit) {
+			instance_destroy(self);
+		}
+	},
 });
