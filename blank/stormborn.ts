@@ -93,9 +93,10 @@ type SB_Room = {
 	fps: number;
 	bg_color: string;
 	setup: () => {
-		x: number;
-		y: number;
-		z: number;
+		x?: number;
+		y?: number;
+		z?: number;
+		mask?: SB_Mask;
 		id: string;
 	}[];
 	instances: Record<string, SB_Instance>;
@@ -674,10 +675,11 @@ function create_game(config: SB_Config) {
 		}
 	}
 
-	function objects_colliding(instance: SB_Instance, obj_id: string): SB_Instance | undefined {
+	function objects_colliding(instance: SB_Instance, obj_id: string): SB_Instance[] {
 		const room = gm.rooms[gm.current_room!];
+		const colliding_instances: SB_Instance[] = [];
 
-		if (!instance) return undefined;
+		if (!instance) return colliding_instances;
 
 		// Use object_index to get instances of the specified object type
 		const potential_collisions = room.object_index[obj_id] || [];
@@ -685,11 +687,11 @@ function create_game(config: SB_Config) {
 		for (const other_id of potential_collisions) {
 			const other = room.instances[other_id];
 			if (instances_colliding(instance, other)) {
-				return other;
+				colliding_instances.push(other);
 			}
 		}
 
-		return undefined;
+		return colliding_instances;
 	}
 
 	function instance_save(key: string, instance: SB_Instance) {
@@ -888,6 +890,7 @@ function create_game(config: SB_Config) {
 				if (item.x !== undefined) instance.x = item.x;
 				if (item.y !== undefined) instance.y = item.y;
 				if (item.z !== undefined) instance.z = item.z;
+				if (item.mask !== undefined) instance.collision_mask = item.mask;
 			}
 		});
 
