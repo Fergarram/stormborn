@@ -9,7 +9,8 @@ const game = create_game({
 	description: "Sort the falling balls into the correct buckets!",
 	image_smoothing_enabled: false, // Set to false for pixel art
 	container: document.getElementById("game"),
-	debug: false,
+	debug: false
+
 });
 
 // Expose all game runtime functions to the global scope

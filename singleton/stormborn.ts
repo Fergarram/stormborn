@@ -704,7 +704,7 @@ function create_game(config: SB_Config) {
 		return room.instances[room.instance_refs[key]];
 	}
 
-	function instance_create(obj_id: string): SB_Instance {
+	function instance_create(obj_id: string, x?: number, y?: number): SB_Instance {
 		const room = gm.rooms[gm.current_room!];
 		const obj = gm.objects[obj_id];
 		if (!obj) throw new Error(`Object with id ${obj_id} not found`);
@@ -719,8 +719,8 @@ function create_game(config: SB_Config) {
 		const instance: SB_Instance = {
 			id: unique_id(),
 			object_id: obj_id,
-			x: 0,
-			y: 0,
+			x: x || 0,
+			y: y || 0,
 			z: 0,
 			collision_mask: obj.collision_mask,
 			tile_layer: obj.tile_layer,

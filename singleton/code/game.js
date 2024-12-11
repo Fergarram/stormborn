@@ -1,4 +1,4 @@
-// Create sprites
+// SPRITES
 create_sprite({
 	id: "balls",
 	filepath: "assets/balls.png",
@@ -29,7 +29,7 @@ create_sprite({
 	origin_y: 30,
 });
 
-// Create game objects
+// OBJECTS
 create_object({
 	id: "obj_ball",
 	sprite: "balls",
@@ -37,30 +37,33 @@ create_object({
 	create: function (self) {
 		self.dx = Math.random() * 2 - 1; // Random direction
 		self.dy = 1;
-		self.speed = 1;
+		self.speed = 3;
 		self.color = Math.floor(Math.random() * 6);
 		self.image_index = self.color;
 		self.held = false;
+		self.dropped = false;
 		self.image_speed = 0;
 	},
 	step: function (dt, self) {
 		if (!self.held) {
-			self.x += self.dx * self.speed;
 			self.y += self.dy * self.speed;
 
-			// Bounce off walls
-			if (self.x < 12 || self.x > 308) {
-				self.dx *= -1;
+			if (!self.dropped) {
+				self.x += self.dx * self.speed;
+
+				// Bounce off walls
+				if (self.x < 12 || self.x > 308) {
+					self.dx *= -1;
+				}
 			}
 
 			// Check bucket collisions with proper y-position check
 			if (self.y >= 180) {
 				// Only check when near buckets
 				const buckets = objects_colliding(self, "obj_bucket");
-				// console.log(buckets);
+
 				if (buckets && buckets.length > 0) {
 					const bucket = buckets[0];
-					console.log(bucket);
 					if (bucket.color === self.color) {
 						instance_destroy(self);
 						room_current().score++;
@@ -73,6 +76,8 @@ create_object({
 	},
 });
 
+// PLAYER
+
 create_object({
 	id: "obj_player",
 	sprite: "player",
@@ -80,62 +85,97 @@ create_object({
 	create: function (self) {
 		self.x = Math.random() * 220 + 50;
 		self.y = 129;
+		self.z = 1;
 		self.speed = 3;
-		self.held_ball = null;
 		self.image_speed = 0;
 		self.facing_right = true;
+		self.transition_timer = 0;
+		self.transition_duration = 6; // Adjust this value to control how long the front-facing frame is shown
+
+		// Create the hands
+		const hands = instance_create("obj_player_hands", self.x, self.y);
+		instance_save("player", self);
 	},
 	step: function (dt, self) {
 		const room = room_current();
-		if (!room.game_over) {
-			// Movement
-			let move_speed = self.speed;
-			if (gm.keys_pressed.F) move_speed *= 2;
+		// Movement
+		if (gm.keys_pressed.f || gm.keys_pressed.F) self.speed *= 2;
 
-			if (gm.keys_pressed.ArrowLeft) {
-				self.x -= move_speed;
-				self.facing_right = false;
-			}
-			if (gm.keys_pressed.ArrowRight) {
-				self.x += move_speed;
-				self.facing_right = true;
-			}
+		let moving_left = gm.keys_pressed.ArrowLeft;
+		let moving_right = gm.keys_pressed.ArrowRight;
 
-			// Keep in bounds
-			self.x = Math.max(35, Math.min(285, self.x));
-
-			// Update sprite
-			self.image_index = self.facing_right ? 0 : 1;
-
-			// Ball handling with explicit collision check
-			if (!self.held_ball) {
-				const balls = objects_colliding(self, "obj_ball");
-				if (balls && balls.length > 0) {
-					const ball = balls[0];
-					if (!ball.held) {
-						// Only pick up balls that aren't already held
-						self.held_ball = ball;
-						self.held_ball.held = true;
-					}
+		if (self.transition_timer <= 0) {
+			if (moving_left) {
+				self.x -= self.speed;
+				if (self.facing_right) {
+					self.transition_timer = self.transition_duration;
+					self.facing_right = false;
+				}
+			} else if (moving_right) {
+				self.x += self.speed;
+				if (!self.facing_right) {
+					self.transition_timer = self.transition_duration;
+					self.facing_right = true;
 				}
 			}
+		}
 
-			if (self.held_ball) {
-				self.held_ball.x = self.x + (self.facing_right ? 53 : 0);
-				self.held_ball.y = self.y - 20;
+		// Keep in bounds
+		self.x = Math.max(35, Math.min(285, self.x));
 
-				if (gm.keys_pressed.ArrowDown) {
-					self.held_ball.held = false;
-					self.held_ball = null;
-				}
-			}
+		// Update sprite
+		if (self.transition_timer > 0) {
+			self.image_index = 1; // Front-facing frame
+			self.transition_timer--;
+			self.speed = 1; // Slow down while transitioning
 		} else {
-			// Game over state
-			self.image_index = self.facing_right ? 2 : 3;
-			if (self.held_ball) {
-				self.held_ball.held = false;
-				self.held_ball = null;
+			self.image_index = self.facing_right ? 0 : 2; // Right-facing or left-facing frame
+			self.speed = 3; // Speed up when not transitioning
+		}
+	},
+});
+create_object({
+	id: "obj_player_hands",
+	collision_mask: { type: "rect", geom: [-10, -10, 20, 20] },
+	create: function (self) {
+		self.held_ball = null;
+	},
+	step: function (dt, self) {
+		const player = instance_get("player");
+		if (player) {
+			if (player.transition_timer > 0) {
+				// During transition, place hands at the center
+				player.z = 0;
+				self.x = player.x;
+			} else if (player.facing_right) {
+				// Facing right
+				player.z = 1;
+				self.x = player.x + 25;
+			} else {
+				// Facing left
+				player.z = 1;
+				self.x = player.x - 25;
 			}
+			self.y = player.y - 6;
+		}
+
+		if (self.held_ball) {
+			self.held_ball.x = self.x;
+			self.held_ball.y = self.y;
+		} else {
+			const colliding_balls = objects_colliding(self, "obj_ball");
+			if (colliding_balls.length > 0 && !colliding_balls[0].dropped) {
+				self.held_ball = colliding_balls[0];
+				self.held_ball.held = true;
+			}
+		}
+
+		// Release the ball when Space is pressed
+		if (gm.keys_pressed.ArrowDown && self.held_ball) {
+			self.held_ball.held = false;
+			self.held_ball.dropped = true;
+			self.held_ball.dy = 1; // Reset vertical speed
+			self.held_ball = null;
 		}
 	},
 });
@@ -144,44 +184,23 @@ create_object({
 	id: "obj_bucket",
 	sprite: "buckets",
 	collision_mask: { type: "rect", geom: [-26, -30, 53, 60] },
-	setup: function (obj_id) {
-		// Static array to keep track of used colors
-		if (!this.used_colors) {
-			this.used_colors = new Set();
-		}
-	},
 	create: function (self) {
 		self.y = 180;
+		self.z = 180;
 		self.image_speed = 0;
-
-		// Get available colors (0-5)
-		let available_colors = [];
-		for (let i = 0; i < 6; i++) {
-			if (!this.used_colors.has(i)) {
-				available_colors.push(i);
-			}
-		}
-
-		// Randomly select from remaining colors
-		const random_index = Math.floor(Math.random() * available_colors.length);
-		self.color = available_colors[random_index];
-		self.image_index = self.color;
-
-		// Add to used colors
-		this.used_colors.add(self.color);
-
-		// Reset used colors if all colors have been used
-		if (this.used_colors.size === 6) {
-			this.used_colors.clear();
-		}
 	},
+	step: function (dt, self) {
+		self.image_index = self.color ? self.color : 0;
+	}
 });
+
+// GAME CONTROLLER
 
 create_object({
 	id: "obj_game_controller",
 	create: function (self) {
 		self.spawn_timer = 0;
-		self.spawn_interval = 160;
+		self.spawn_interval = 100;
 	},
 	step: function (dt, self) {
 		const room = room_current();
@@ -192,20 +211,19 @@ create_object({
 			if (self.spawn_timer >= self.spawn_interval) {
 				const ball = instance_create("obj_ball");
 				ball.x = Math.random() * 280 + 20;
-				ball.y = -12;
+				ball.y = -12 + 12;
 				self.spawn_timer = 0;
 			}
+		} else {
+			window.location.reload()
 		}
 
-		// Check for restart
-		if (instance_count("obj_ball") >= 32) {
-			room_goto("rm_game");
 		}
 	},
 	draw: function (self) {
 		const room = room_current();
-		gm.ctx.fillStyle = "white";
-		gm.ctx.font = "20px Arial";
+		gm.ctx.fillStyle = "black";
+		gm.ctx.font = "12px Arial";
 		gm.ctx.fillText(`Score: ${room.score}`, 10, 30);
 	},
 });
@@ -215,30 +233,48 @@ create_room({
 	id: "rm_game",
 	width: 320,
 	height: 240,
+	camera: {
+		x: 0,
+		y: 0,
+		width: 320,
+		height: 240,
+		get viewport_width() {
+            const widthRatio = window.innerWidth / 320;
+            const heightRatio = window.innerHeight / 240;
+            const scale = Math.min(widthRatio, heightRatio);
+            return Math.floor(320 * scale);
+        },
+        get viewport_height() {
+            const widthRatio = window.innerWidth / 320;
+            const heightRatio = window.innerHeight / 240;
+            const scale = Math.min(widthRatio, heightRatio);
+            return Math.floor(240 * scale);
+        },
+		// follow: "obj_player", // Uncomment to follow object
+	},
 	fps: 60,
-	bg_color: "#000000",
+	bg_color: "#808080",
 	setup: function () {
 		const room = room_current();
 		room.score = 0;
 		room.game_over = false;
-
-		room.camera = {
-			x: 0,
-			y: 0,
-			width: 320,
-			height: 240,
-			viewport_width: 320,
-			viewport_height: 240,
-		};
-
 		instance_create("obj_player");
 		instance_create("obj_game_controller");
 
-		// Create buckets with evenly spaced x positions
-		return Array.from({ length: 6 }, (_, index) => ({
-			id: "obj_bucket",
-			x: 26 + index * 53,
-		}));
+		// Create an array of available colors
+		const availableColors = [0, 1, 2, 3, 4, 5];
+
+		// Create buckets with evenly spaced x positions and unique colors
+		Array.from({ length: 6 }, (_, index) => {
+			// Randomly select a color from the available colors
+			const colorIndex = Math.floor(Math.random() * availableColors.length);
+			const color = availableColors[colorIndex];
+			// Remove the selected color from the available colors
+			availableColors.splice(colorIndex, 1);
+
+			const bucket = instance_create("obj_bucket", 26 + index * 53, 0);
+			bucket.color = color;
+		});
 	},
 });
 
