@@ -569,6 +569,13 @@ function create_game(config) {
     });
     call_objects_room_start(room_id);
   }
+  async function room_restart() {
+    if (!gm.current_room) {
+      throw new Error("No room is currently active");
+    }
+    await requeue();
+    room_goto(gm.current_room);
+  }
   function room_current() {
     return gm.current_room ? gm.rooms[gm.current_room] : null;
   }
@@ -599,6 +606,7 @@ function create_game(config) {
     create_sound,
     run_game,
     room_goto,
+    room_restart,
     room_current,
     play_sound,
     stop_sound,
@@ -614,6 +622,9 @@ function create_game(config) {
     objects_colliding,
     animation_ended
   };
+}
+function requeue(time = 0) {
+  return new Promise((resolve) => setTimeout(resolve, time));
 }
 function point_distance(x1, y1, x2, y2) {
   const dx = x2 - x1;
@@ -635,7 +646,7 @@ function unique_id() {
     throw new Error("Crypto functionality not available");
   }
 }
-var stormborn_default = { create_game, point_distance, point_direction, unique_id };
+var stormborn_default = { create_game, point_distance, point_direction, unique_id, requeue };
 export {
   stormborn_default as default
 };

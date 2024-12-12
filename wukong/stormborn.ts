@@ -869,6 +869,7 @@ function create_game(config: SB_Config) {
 		}
 
 		gm.current_room = room_id;
+
 		const room = gm.rooms[room_id];
 		room.camera.x = 0;
 		room.camera.y = 0;
@@ -896,6 +897,16 @@ function create_game(config: SB_Config) {
 
 		// Run room start event
 		call_objects_room_start(room_id);
+	}
+
+	async function room_restart() {
+		if (!gm.current_room) {
+			throw new Error("No room is currently active");
+		}
+
+		await requeue();
+
+		room_goto(gm.current_room);
 	}
 
 	function room_current() {
@@ -931,6 +942,7 @@ function create_game(config: SB_Config) {
 		create_sound,
 		run_game,
 		room_goto,
+		room_restart,
 		room_current,
 		play_sound,
 		stop_sound,
@@ -951,6 +963,10 @@ function create_game(config: SB_Config) {
 //
 // General Utils
 //
+
+function requeue(time = 0) {
+	return new Promise((resolve) => setTimeout(resolve, time));
+}
 
 function point_distance(x1: number, y1: number, x2: number, y2: number): number {
 	const dx = x2 - x1;
@@ -980,4 +996,4 @@ function unique_id(): string {
 		throw new Error("Crypto functionality not available");
 	}
 }
-export default { create_game, point_distance, point_direction, unique_id };
+export default { create_game, point_distance, point_direction, unique_id, requeue };
