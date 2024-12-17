@@ -52,7 +52,7 @@ type SB_Object = {
 	tile_layer: string | null;
 	sprite: string | null;
 	setup?: (obj_id: string) => void;
-	create?: (self: SB_Instance) => void;
+	create?: (self: SB_Instance, props?: {}) => void;
 	destroy?: (self: SB_Instance) => void;
 	step?: (dt: number, self: SB_Instance) => void;
 	draw?: (self: SB_Instance) => void;
@@ -212,15 +212,15 @@ function create_game(config: SB_Config) {
 		canvas.addEventListener("mousedown", (e) => {
 			if (!gm.running || !gm.current_room) return;
 
-			const rect = canvas.getBoundingClientRect();
-			const room = gm.rooms[gm.current_room];
-			const camera = room.camera;
+			// const rect = canvas.getBoundingClientRect();
+			// const room = gm.rooms[gm.current_room];
+			// const camera = room.camera;
 
-			const scale_x = camera.width / camera.viewport_width;
-			const scale_y = camera.height / camera.viewport_height;
+			// const scale_x = camera.width / camera.viewport_width;
+			// const scale_y = camera.height / camera.viewport_height;
 
-			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
+			// const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
+			// const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
 
 			gm.mouse_buttons_pressed[e.button] = true;
 		});
@@ -228,15 +228,15 @@ function create_game(config: SB_Config) {
 		canvas.addEventListener("mouseup", (e) => {
 			if (!gm.running || !gm.current_room) return;
 
-			const rect = canvas.getBoundingClientRect();
-			const room = gm.rooms[gm.current_room];
-			const camera = room.camera;
+			// const rect = canvas.getBoundingClientRect();
+			// const room = gm.rooms[gm.current_room];
+			// const camera = room.camera;
 
-			const scale_x = camera.width / camera.viewport_width;
-			const scale_y = camera.height / camera.viewport_height;
+			// const scale_x = camera.width / camera.viewport_width;
+			// const scale_y = camera.height / camera.viewport_height;
 
-			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
+			// const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
+			// const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
 
 			gm.mouse_buttons_pressed[e.button] = false;
 		});
@@ -704,7 +704,7 @@ function create_game(config: SB_Config) {
 		return room.instances[room.instance_refs[key]];
 	}
 
-	function instance_create(obj_id: string, x?: number, y?: number): SB_Instance {
+	function instance_create(obj_id: string, x?: number, y?: number, z?: number, props?: {}): SB_Instance {
 		const room = gm.rooms[gm.current_room!];
 		const obj = gm.objects[obj_id];
 		if (!obj) throw new Error(`Object with id ${obj_id} not found`);
@@ -721,7 +721,7 @@ function create_game(config: SB_Config) {
 			object_id: obj_id,
 			x: x || 0,
 			y: y || 0,
-			z: 0,
+			z: z || 0,
 			collision_mask: obj.collision_mask,
 			tile_layer: obj.tile_layer,
 			sprite: obj.sprite,
@@ -746,7 +746,7 @@ function create_game(config: SB_Config) {
 		room.object_index[obj_id].push(instance.id);
 
 		if (obj.create) {
-			obj.create(instance);
+			obj.create(instance, props);
 		}
 
 		return instance;
@@ -869,6 +869,7 @@ function create_game(config: SB_Config) {
 		}
 
 		gm.current_room = room_id;
+
 		const room = gm.rooms[room_id];
 		room.camera.x = 0;
 		room.camera.y = 0;
@@ -896,6 +897,16 @@ function create_game(config: SB_Config) {
 
 		// Run room start event
 		call_objects_room_start(room_id);
+	}
+
+	async function room_restart() {
+		if (!gm.current_room) {
+			throw new Error("No room is currently active");
+		}
+
+		await requeue();
+
+		room_goto(gm.current_room);
 	}
 
 	function room_current() {
@@ -931,6 +942,7 @@ function create_game(config: SB_Config) {
 		create_sound,
 		run_game,
 		room_goto,
+		room_restart,
 		room_current,
 		play_sound,
 		stop_sound,
@@ -951,6 +963,10 @@ function create_game(config: SB_Config) {
 //
 // General Utils
 //
+
+function requeue(time = 0) {
+	return new Promise((resolve) => setTimeout(resolve, time));
+}
 
 function point_distance(x1: number, y1: number, x2: number, y2: number): number {
 	const dx = x2 - x1;
@@ -980,4 +996,4 @@ function unique_id(): string {
 		throw new Error("Crypto functionality not available");
 	}
 }
-export default { create_game, point_distance, point_direction, unique_id };
+export default { create_game, point_distance, point_direction, unique_id, requeue };

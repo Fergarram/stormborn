@@ -14,3 +14,10 @@ const game = create_game({
 
 // Expose all game runtime functions to the global scope
 Object.assign(window, game);
+
+// CONFIG
+window.config = {
+	viewport_width: 240,
+	viewport_height: 320,
+	scale: 1,
+};

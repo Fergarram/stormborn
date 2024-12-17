@@ -52,7 +52,7 @@ type SB_Object = {
 	tile_layer: string | null;
 	sprite: string | null;
 	setup?: (obj_id: string) => void;
-	create?: (self: SB_Instance) => void;
+	create?: (self: SB_Instance, props?: {}) => void;
 	destroy?: (self: SB_Instance) => void;
 	step?: (dt: number, self: SB_Instance) => void;
 	draw?: (self: SB_Instance) => void;
@@ -212,15 +212,15 @@ function create_game(config: SB_Config) {
 		canvas.addEventListener("mousedown", (e) => {
 			if (!gm.running || !gm.current_room) return;
 
-			const rect = canvas.getBoundingClientRect();
-			const room = gm.rooms[gm.current_room];
-			const camera = room.camera;
+			// const rect = canvas.getBoundingClientRect();
+			// const room = gm.rooms[gm.current_room];
+			// const camera = room.camera;
 
-			const scale_x = camera.width / camera.viewport_width;
-			const scale_y = camera.height / camera.viewport_height;
+			// const scale_x = camera.width / camera.viewport_width;
+			// const scale_y = camera.height / camera.viewport_height;
 
-			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
+			// const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
+			// const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
 
 			gm.mouse_buttons_pressed[e.button] = true;
 		});
@@ -228,15 +228,15 @@ function create_game(config: SB_Config) {
 		canvas.addEventListener("mouseup", (e) => {
 			if (!gm.running || !gm.current_room) return;
 
-			const rect = canvas.getBoundingClientRect();
-			const room = gm.rooms[gm.current_room];
-			const camera = room.camera;
+			// const rect = canvas.getBoundingClientRect();
+			// const room = gm.rooms[gm.current_room];
+			// const camera = room.camera;
 
-			const scale_x = camera.width / camera.viewport_width;
-			const scale_y = camera.height / camera.viewport_height;
+			// const scale_x = camera.width / camera.viewport_width;
+			// const scale_y = camera.height / camera.viewport_height;
 
-			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
+			// const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
+			// const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
 
 			gm.mouse_buttons_pressed[e.button] = false;
 		});
@@ -704,7 +704,7 @@ function create_game(config: SB_Config) {
 		return room.instances[room.instance_refs[key]];
 	}
 
-	function instance_create(obj_id: string, x?: number, y?: number): SB_Instance {
+	function instance_create(obj_id: string, x?: number, y?: number, z?: number, props?: {}): SB_Instance {
 		const room = gm.rooms[gm.current_room!];
 		const obj = gm.objects[obj_id];
 		if (!obj) throw new Error(`Object with id ${obj_id} not found`);
@@ -721,7 +721,7 @@ function create_game(config: SB_Config) {
 			object_id: obj_id,
 			x: x || 0,
 			y: y || 0,
-			z: 0,
+			z: z || 0,
 			collision_mask: obj.collision_mask,
 			tile_layer: obj.tile_layer,
 			sprite: obj.sprite,
@@ -746,7 +746,7 @@ function create_game(config: SB_Config) {
 		room.object_index[obj_id].push(instance.id);
 
 		if (obj.create) {
-			obj.create(instance);
+			obj.create(instance, props);
 		}
 
 		return instance;

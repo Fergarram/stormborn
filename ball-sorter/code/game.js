@@ -215,7 +215,7 @@ create_object({
 				self.spawn_timer = 0;
 			}
 		} else {
-			window.location.reload();
+			room_restart();
 		}
 	},
 	draw(self) {

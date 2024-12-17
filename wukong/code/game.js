@@ -1,131 +1,102 @@
-// CONFIG
-const config = {
-	viewport_width: 384,
-	viewport_height: 432,
-	scale: 2,
-};
-
-// SPRITES
-create_sprite({
-	id: "spr_goku",
-	filepath: "assets/goku.png",
-	frames: 6,
-	frame_width: 18,
-	frame_height: 24,
-	origin_x: 9,
-	origin_y: 12,
-});
-
-create_sprite({
-	id: "spr_goku_air",
-	filepath: "assets/goku_air.png",
-	frames: 2,
-	frame_width: 20,
-	frame_height: 24,
-	origin_x: 10,
-	origin_y: 12,
-});
-
-create_sprite({
-	id: "spr_block",
-	filepath: "assets/block.png",
-	frames: 1,
-	frame_width: 24,
-	frame_height: 24,
-	origin_x: 0,
-	origin_y: 0,
-});
-
 // OBJECTS
 create_object({
-	id: "obj_goku",
-	sprite: "spr_goku",
-	collision_mask: { type: "rect", geom: [-9, -11, 18, 22] },
-	create(self) {
-		self.gravity = 0.5;
-		self.jump_force = -7;
-		self.vertical_speed = 0;
-		self.can_flap = true;
-		self.rotation = 0;
-		self.on_ground = false;
-		instance_save("player", self);
+	id: "obj_block",
+	create(self, { top_parts, bottom_parts }) {
+		self.speed = 3;
+		self.score_added = false;
 		self.controller = instance_get("controller");
-	},
-	step(dt, self) {
-		if (!self.controller.game_over) {
-			// Apply gravity
-			if (!self.on_ground) {
-				self.vertical_speed += self.gravity;
-				self.image_speed = 0;
-				if (self.sprite !== "spr_goku_air") self.sprite = "spr_goku_air";
-				self.image_index = self.vertical_speed > 1.5 ? 1 : 0;
-			} else {
-				if (self.sprite !== "spr_goku") self.sprite = "spr_goku";
-				self.image_speed = 3;
-			}
+		self.parts = [];
+		let top_column_height = 0;
+		let bottom_column_height = 0;
 
-			// Jump when space is pressed
-			if ((gm.keys_pressed.Space || gm.keys_pressed["8"]) && (self.on_ground || self.can_flap)) {
-				self.vertical_speed = self.jump_force;
-				self.can_flap = false;
-				self.on_ground = false;
-			}
-			if (!(gm.keys_pressed.Space || gm.keys_pressed["8"])) {
-				self.can_flap = true;
-			}
+		for (let i = 0; i < top_parts; i++) {
+			const part = instance_create("obj_column_part", self.x, self.y);
+			top_column_height += part.height;
 
-			// Update position
-			self.y += self.vertical_speed;
+			part.y = self.y + top_column_height - part.height;
+			self.parts.push(part);
 
-			// Ground collision check
-			if (self.y >= 204) {
-				self.y = 204;
-				self.on_ground = true;
-				self.vertical_speed = 0;
-			} else {
-				self.on_ground = false;
+			if (i === top_parts - 1) {
+				const bottom_cap = instance_create("obj_column_part", self.x, self.y + top_column_height);
+				bottom_cap.sprite = "spr_bottom";
+				bottom_cap.width = 26;
+				bottom_cap.height = 12;
+				bottom_cap.collision_mask = {
+					type: "rect",
+					geom: [-bottom_cap.width / 2, 0, bottom_cap.width, bottom_cap.height],
+				};
+				bottom_cap.z = 100;
+				self.parts.push(bottom_cap);
 			}
+		}
 
-			// Check collisions with blocks
-			const blocks = objects_colliding(self, "obj_block");
-			if (blocks.length > 0) {
-				self.controller.game_over = true;
+		for (let i = 0; i < bottom_parts; i++) {
+			const part = instance_create("obj_column_part", self.x, self.y);
+			bottom_column_height += part.height;
+
+			part.y = self.y - bottom_column_height;
+			self.parts.push(part);
+
+			if (i === bottom_parts - 1) {
+				const top_cap = instance_create("obj_column_part", self.x, self.y - bottom_column_height - 12);
+				top_cap.sprite = "spr_top";
+				top_cap.width = 26;
+				top_cap.height = 12;
+				top_cap.collision_mask = {
+					type: "rect",
+					geom: [-top_cap.width / 2, 0, top_cap.width, top_cap.height],
+				};
+				top_cap.z = 100;
+				self.parts.push(top_cap);
 			}
-		} else {
-			// Falls when game over
-			self.vertical_speed += self.gravity;
-			self.y += self.vertical_speed;
-			self.image_speed = 0;
 		}
 	},
-});
-
-create_object({
-	id: "obj_block",
-	sprite: "spr_block",
-	collision_mask: { type: "rect", geom: [0, 0, 24, 24] },
-	create(self) {
-		self.speed = 3;
-		self.controller = instance_get("controller");
-		self.score_added = false;
-	},
 	step(dt, self) {
 		if (!self.controller.game_over) {
-			// Move block left
 			self.x -= self.speed;
 
-			// Remove block when it's off screen
 			if (self.x < -60) {
 				instance_destroy(self);
+
+				// Remove parts
+				self.parts.forEach((part) => {
+					instance_destroy(part);
+				});
 			}
 
-			// Add score when block passes goku
 			const goku = instance_get("player");
-			if (goku && goku.x > self.x + 12 && !self.score_added) {
+			if (goku && goku.x > self.x + self.image_width / 2 && !self.score_added) {
 				self.controller.score++;
 				self.score_added = true;
 			}
 		}
+
+		self.parts.forEach((part) => {
+			part.x = self.x;
+		});
+	},
+});
+
+create_object({
+	id: "obj_column_part",
+	create(self) {
+		const column_spr_sizes = {
+			spr_c0: { w: 14, h: 12 },
+			spr_c1: { w: 16, h: 4 },
+			spr_c2: { w: 12, h: 10 },
+			spr_c3: { w: 18, h: 8 },
+			spr_c4: { w: 14, h: 6 },
+			spr_c5: { w: 12, h: 16 },
+		};
+
+		const column_spr_names = Object.keys(column_spr_sizes);
+
+		const part_number = Math.floor(Math.random() * column_spr_names.length);
+		self.sprite = column_spr_names[part_number];
+
+		self.width = column_spr_sizes[self.sprite].w;
+		self.height = column_spr_sizes[self.sprite].h;
+		self.collision_mask = { type: "rect", geom: [-self.width / 2, -self.height / 2, self.width, self.height] };
 	},
 });
 
@@ -133,40 +104,47 @@ create_object({
 	id: "obj_game_controller",
 	create(self) {
 		self.spawn_timer = 0;
-		self.max_spawn_interval = 110;
-		self.min_spawn_interval = 30;
+		self.max_spawn_interval = 70;
+		self.min_spawn_interval = 50;
 		self.spawn_interval =
 			Math.floor(Math.random() * (self.max_spawn_interval - self.min_spawn_interval + 1)) + self.min_spawn_interval;
 		self.score = 0;
 		self.game_over = false;
 		self.game_over_timer = 0;
 		instance_save("controller", self);
-		self.controller = instance_get("controller");
 	},
 	step(dt, self) {
-		const room = room_current();
-
-		if (!self.controller.game_over) {
+		if (!self.game_over) {
 			self.spawn_timer++;
 			if (self.spawn_timer >= self.spawn_interval) {
-				// Adjust gap position based on viewport height
-				const gap_position = Math.random() * (config.viewport_height / config.scale - 120) + 60; // Adjusted range
-				const gap_size = 4;
+				const x = config.viewport_width / config.scale;
+				const screen_height = config.viewport_height / config.scale;
+				const column_placement = Math.floor(Math.random() * 3);
+				const max_cols = 25;
 
-				// Create column of blocks
-				const max_blocks = Math.ceil(config.viewport_height / (24 * config.scale));
-				for (let i = 0; i < max_blocks; i++) {
-					// Top column
-					if (i < gap_position / 24 - gap_size) {
-						const block = instance_create("obj_block", config.viewport_width / config.scale, i * 24);
-						block.group_id = self.spawn_timer;
+				switch (column_placement) {
+					// Top and bottom
+					case 0: {
+						const top_parts = Math.floor((Math.random() * max_cols) / 2) + 1;
+						const bottom_parts = Math.floor((Math.random() * max_cols) / 2) + 1;
+						instance_create("obj_block", x, 0, 0, { top_parts, bottom_parts });
+						instance_create("obj_block", x, screen_height - 20, 0, { top_parts, bottom_parts });
+						break;
 					}
-				}
-
-				for (let i = Math.ceil(gap_position / 24) + 1; i < max_blocks; i++) {
-					// Bottom column
-					const block = instance_create("obj_block", config.viewport_width / config.scale, i * 24);
-					block.group_id = self.spawn_timer;
+					// Top
+					case 1: {
+						const top_parts = Math.floor(Math.random() * max_cols) + 1;
+						const bottom_parts = 0;
+						instance_create("obj_block", x, 0, 0, { top_parts, bottom_parts });
+						break;
+					}
+					// Bottom
+					case 2: {
+						const top_parts = 0;
+						const bottom_parts = Math.floor((Math.random() * max_cols) / 2) + 1;
+						instance_create("obj_block", x, screen_height - 20, 0, { top_parts, bottom_parts });
+						break;
+					}
 				}
 
 				self.spawn_timer = 0;
@@ -176,23 +154,19 @@ create_object({
 			}
 		} else {
 			self.game_over_timer += 3 / 60;
-
-			if (self.game_over_timer >= 1 && (gm.keys_pressed.Space || gm.keys_pressed["8"])) {
-				room_restart();
-			}
 		}
 	},
 	draw(self) {
 		// Draw score - adjusted position based on viewport
-		gm.ctx.fillStyle = "white";
-		gm.ctx.font = "24px Arial";
-		gm.ctx.fillText(`分数: ${self.controller.score}`, 10, 30);
+		gm.ctx.fillStyle = "#000000";
+		gm.ctx.font = "24px Times New Roman";
+		gm.ctx.fillText(`分数: ${self.score}`, 10, 30);
 		// gm.ctx.fillText(`分数: ${window.innerWidth} ${window.innerHeight}`, 10, 30);
 
 		// Draw game over message - centered based on viewport
 		if (self.game_over) {
-			gm.ctx.fillStyle = "white";
-			gm.ctx.font = "32px Arial";
+			gm.ctx.fillStyle = "#000000";
+			gm.ctx.font = "32px Times New Roman";
 			gm.ctx.fillText(
 				"游戏结束!",
 				config.viewport_width / (2 * config.scale) - 72,
@@ -200,7 +174,7 @@ create_object({
 			);
 
 			if (self.game_over_timer >= 3) {
-				gm.ctx.font = "16px Arial";
+				gm.ctx.font = "16px Times New Roman";
 				gm.ctx.fillText(
 					"按空格键重新开始",
 					config.viewport_width / (2 * config.scale) - 60,
@@ -249,11 +223,23 @@ create_room({
 				x: config.viewport_width / (4 * config.scale),
 				y: config.viewport_height / config.scale / 2,
 			},
+			{
+				id: "obj_background",
+				z: -1000,
+			},
+			{
+				id: "obj_floor",
+				y: config.viewport_height / config.scale - 20,
+				z: -500,
+			},
+			{ id: "obj_clouds", x: 0, y: 0 },
 		];
 	},
 });
 
 // Start the game
-run_game(() => {
-	room_goto("rm_game");
+window.addEventListener("load", () => {
+	run_game(() => {
+		room_goto("rm_game");
+	});
 });

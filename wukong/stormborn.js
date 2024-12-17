@@ -64,25 +64,11 @@ function create_game(config) {
     canvas.addEventListener("mousedown", (e) => {
       if (!gm.running || !gm.current_room)
         return;
-      const rect = canvas.getBoundingClientRect();
-      const room = gm.rooms[gm.current_room];
-      const camera = room.camera;
-      const scale_x = camera.width / camera.viewport_width;
-      const scale_y = camera.height / camera.viewport_height;
-      const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-      const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
       gm.mouse_buttons_pressed[e.button] = true;
     });
     canvas.addEventListener("mouseup", (e) => {
       if (!gm.running || !gm.current_room)
         return;
-      const rect = canvas.getBoundingClientRect();
-      const room = gm.rooms[gm.current_room];
-      const camera = room.camera;
-      const scale_x = camera.width / camera.viewport_width;
-      const scale_y = camera.height / camera.viewport_height;
-      const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-      const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
       gm.mouse_buttons_pressed[e.button] = false;
     });
     Object.values(gm.objects).forEach((obj) => {
@@ -412,7 +398,7 @@ function create_game(config) {
     const room = gm.rooms[gm.current_room];
     return room.instances[room.instance_refs[key]];
   }
-  function instance_create(obj_id, x, y) {
+  function instance_create(obj_id, x, y, z, props) {
     const room = gm.rooms[gm.current_room];
     const obj = gm.objects[obj_id];
     if (!obj)
@@ -429,7 +415,7 @@ function create_game(config) {
       object_id: obj_id,
       x: x || 0,
       y: y || 0,
-      z: 0,
+      z: z || 0,
       collision_mask: obj.collision_mask,
       tile_layer: obj.tile_layer,
       sprite: obj.sprite,
@@ -450,7 +436,7 @@ function create_game(config) {
     }
     room.object_index[obj_id].push(instance.id);
     if (obj.create) {
-      obj.create(instance);
+      obj.create(instance, props);
     }
     return instance;
   }
