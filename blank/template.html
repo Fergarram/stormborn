@@ -3,23 +3,9 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="theme-color" content="#000000" />
 		<link rel="icon" href="assets/icon.png" type="image/png" />
 		<style>
-			/*
-				Font: Ruge Boogie
-				How to use:
-				1. Download the font from https://www.1001fonts.com/ruge-boogie-font.html
-				2. Place the font in the assets/fonts folder
-				3. Uncomment the code below
-		 	*/
-			/* @font-face {
-				font-family: "RugeBoogie";
-				src: url("assets/fonts/RugeBoogie-Regular.ttf") format("truetype");
-				font-weight: normal;
-				font-style: normal;
-			} */
-
-			/* Don't touch this unless you know what you're doing. */
 			body,
 			html {
 				margin: 0;
@@ -28,19 +14,21 @@
 				height: 100%;
 				background: #808080;
 			}
-
-			/* Don't touch this unless you know what you're doing. */
-			canvas {
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-				overflow: hidden;
+			body {
+				display: flex;
+				flex-direction: column;
 			}
+			#game {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				background: #000;
+			}
+
 		</style>
 	</head>
 	<body>
-		<div id="game" style="position: fixed; left: 0; top: 0; width: 100vw; height: 100vh"></div>
+		<div id="game"></div>
 		<script type="module" src="stormborn.js"></script>
 		<script type="module" src="index.js"></script>
 	</body>

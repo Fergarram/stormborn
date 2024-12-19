@@ -64,25 +64,11 @@ function create_game(config) {
     canvas.addEventListener("mousedown", (e) => {
       if (!gm.running || !gm.current_room)
         return;
-      const rect = canvas.getBoundingClientRect();
-      const room = gm.rooms[gm.current_room];
-      const camera = room.camera;
-      const scale_x = camera.width / camera.viewport_width;
-      const scale_y = camera.height / camera.viewport_height;
-      const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-      const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
       gm.mouse_buttons_pressed[e.button] = true;
     });
     canvas.addEventListener("mouseup", (e) => {
       if (!gm.running || !gm.current_room)
         return;
-      const rect = canvas.getBoundingClientRect();
-      const room = gm.rooms[gm.current_room];
-      const camera = room.camera;
-      const scale_x = camera.width / camera.viewport_width;
-      const scale_y = camera.height / camera.viewport_height;
-      const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-      const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
       gm.mouse_buttons_pressed[e.button] = false;
     });
     Object.values(gm.objects).forEach((obj) => {
@@ -392,16 +378,17 @@ function create_game(config) {
   }
   function objects_colliding(instance, obj_id) {
     const room = gm.rooms[gm.current_room];
+    const colliding_instances = [];
     if (!instance)
-      return;
+      return colliding_instances;
     const potential_collisions = room.object_index[obj_id] || [];
     for (const other_id of potential_collisions) {
       const other = room.instances[other_id];
       if (instances_colliding(instance, other)) {
-        return other;
+        colliding_instances.push(other);
       }
     }
-    return;
+    return colliding_instances;
   }
   function instance_save(key, instance) {
     const room = gm.rooms[gm.current_room];
@@ -411,7 +398,7 @@ function create_game(config) {
     const room = gm.rooms[gm.current_room];
     return room.instances[room.instance_refs[key]];
   }
-  function instance_create(obj_id) {
+  function instance_create(obj_id, x, y, z, props) {
     const room = gm.rooms[gm.current_room];
     const obj = gm.objects[obj_id];
     if (!obj)
@@ -426,9 +413,9 @@ function create_game(config) {
     const instance = {
       id: unique_id(),
       object_id: obj_id,
-      x: 0,
-      y: 0,
-      z: 0,
+      x: x || 0,
+      y: y || 0,
+      z: z || 0,
       collision_mask: obj.collision_mask,
       tile_layer: obj.tile_layer,
       sprite: obj.sprite,
@@ -449,7 +436,7 @@ function create_game(config) {
     }
     room.object_index[obj_id].push(instance.id);
     if (obj.create) {
-      obj.create(instance);
+      obj.create(instance, props);
     }
     return instance;
   }
@@ -562,9 +549,18 @@ function create_game(config) {
           instance.y = item.y;
         if (item.z !== undefined)
           instance.z = item.z;
+        if (item.mask !== undefined)
+          instance.collision_mask = item.mask;
       }
     });
     call_objects_room_start(room_id);
+  }
+  async function room_restart() {
+    if (!gm.current_room) {
+      throw new Error("No room is currently active");
+    }
+    await requeue();
+    room_goto(gm.current_room);
   }
   function room_current() {
     return gm.current_room ? gm.rooms[gm.current_room] : null;
@@ -596,6 +592,7 @@ function create_game(config) {
     create_sound,
     run_game,
     room_goto,
+    room_restart,
     room_current,
     play_sound,
     stop_sound,
@@ -611,6 +608,9 @@ function create_game(config) {
     objects_colliding,
     animation_ended
   };
+}
+function requeue(time = 0) {
+  return new Promise((resolve) => setTimeout(resolve, time));
 }
 function point_distance(x1, y1, x2, y2) {
   const dx = x2 - x1;
@@ -632,7 +632,7 @@ function unique_id() {
     throw new Error("Crypto functionality not available");
   }
 }
-var stormborn_default = { create_game, point_distance, point_direction, unique_id };
+var stormborn_default = { create_game, point_distance, point_direction, unique_id, requeue };
 export {
   stormborn_default as default
 };
