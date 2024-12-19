@@ -25,6 +25,22 @@ async function get_js_files(dir_path: string): Promise<string[]> {
 	return files;
 }
 
+async function watch_template(): Promise<void> {
+	try {
+		const watcher = watch(".", { recursive: false }); // Watch current directory
+
+		for await (const event of watcher) {
+			if (event.filename === "template.html") {
+				console.log("Detected change in template.html");
+				const js_files = await get_js_files("code");
+				await update_html_imports(js_files);
+			}
+		}
+	} catch (error) {
+		console.error("Error watching template:", error);
+	}
+}
+
 async function update_html_imports(js_files: string[]): Promise<void> {
 	const template_path = "template.html";
 	const html_content = await Bun.file(template_path).text();
@@ -105,6 +121,10 @@ async function main(): Promise<void> {
 		// Start file watcher
 		watch_code_directory().catch((error) => {
 			console.error("Watcher error:", error);
+		});
+
+		watch_template().catch((error) => {
+			console.error("Template watcher error:", error);
 		});
 
 		// Watch stormborn.ts

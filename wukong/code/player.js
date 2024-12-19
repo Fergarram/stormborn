@@ -1,9 +1,9 @@
 function jump_key_pressed() {
-	return gm.keys_pressed.Space || gm.keys_pressed["8"] || gm.keys_pressed.ArrowUp;
+	return gm.keys_pressed.Space || gm.keys_pressed["8"] || gm.keys_pressed.ArrowUp || gm.keys_pressed["a"];
 }
 
 function fall_key_pressed() {
-	return gm.keys_pressed.ArrowDown || gm.keys_pressed.ArrowRight || gm.keys_pressed["0"];
+	return gm.keys_pressed.ArrowDown || gm.keys_pressed.ArrowRight || gm.keys_pressed["0"] || gm.keys_pressed["b"];
 }
 
 create_object({
@@ -58,6 +58,12 @@ create_object({
 			// Update position
 			self.y += self.vertical_speed;
 			self.x += self.horizontal_speed;
+
+			// Add minimum x boundary
+			if (self.x < self.initial_x) {
+				self.x = self.initial_x;
+				self.horizontal_speed = 0;
+			}
 
 			// Ground collision check
 			if (self.y >= config.viewport_height + self.collision_mask.geom[1] - 18) {
