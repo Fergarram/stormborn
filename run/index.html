@@ -24,39 +24,14 @@
 				align-items: center;
 				background: #000;
 			}
-			#controls {
-				display: flex;
-				width: 100%;
-				height: 100%;
-				gap: 2px;
-			}
-			#controls button {
-				flex: 1;
-				padding: 20px;
-				font-size: 24px;
-				border: none;
-				background: #444;
-				color: white;
-				cursor: pointer;
-			}
-			#controls button:active {
-				background: #666;
-			}
+
 		</style>
 	</head>
 	<body>
 		<div id="game"></div>
-		<div id="controls">
-			<button id="button_a">A</button>
-			<button id="button_b">B</button>
-		</div>
 		<script type="module" src="stormborn.js"></script>
 		<script type="module" src="index.js"></script>
-		<script type="module" src="code/mobile-buttons.js"></script>
-		<script type="module" src="code/game.js"></script>
-		<script type="module" src="code/parallax.js"></script>
-		<script type="module" src="code/sprites.js"></script>
-		<script type="module" src="code/clouds.js"></script>
-		<script type="module" src="code/player.js"></script>
+		<script type="module" src="code\running_game.js"></script>
+		<script type="module" src="code\running_sprites.js"></script>
 </body>
 </html>

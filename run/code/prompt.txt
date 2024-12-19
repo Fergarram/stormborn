@@ -1,0 +1,19 @@
+the ball sorter game code is an example of how to use stormborn.
+
+help me make this racing game. it's a very simple game, only using two buttons for each player. Each player controls their racer by alternately pressing two buttons. The faster they alternate between the two buttons, the faster their racer moves.
+
+Penalize players who press the same button twice in a row. For example, their racer could slow down temporarily.
+
+Allow for a "turbo mode" if a player achieves a streak of perfect alternations.
+
+These boosts and penalizations should be very brief.
+
+PLAYER ONE USES KEYS "C" AND "V"
+PLAYER TWO USES "J" AND "K"
+PLAYER THREE USES "[" AND "]"
+PLAYER FOUR USES LEFT ARROW KEY AND DOWN ARROW KEY.
+PLAYER FIVE USES "5" AND "6"
+PLAYER SIX USES "1" AND "2"
+
+each player uses a different colored sprite. the color is assigned randomly, but there can't be two players using the same color.
+the sprite for each color has 6 frames (0 to 5). the first frame (frame 0) is the idle frame. the next 5 frames (1 to 5) are the walk cycle animation and should loop at an image speed that is not equal but proportional to the speed the player is moving.
