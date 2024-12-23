@@ -208,7 +208,9 @@ create_room({
 	},
 });
 
-// Start the game
-run_game(() => {
-	room_goto("rm_game");
+// START THE GAME
+window.addEventListener("load", () => {
+	run_game(() => {
+		room_goto("rm_game");
+	});
 });

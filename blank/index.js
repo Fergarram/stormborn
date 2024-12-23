@@ -18,6 +18,6 @@ Object.assign(window, game);
 // CONFIG
 window.config = {
 	viewport_width: 320,
-	viewport_height: 288,
+	viewport_height: 240,
 	scale: 1,
 };
