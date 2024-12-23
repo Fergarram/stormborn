@@ -121,16 +121,6 @@ create_object({
 				return;
 			}
 
-			// Check if it's the black ball (number 8)
-			if (ball.ball_number === 8) {
-				self.controller.black_ball_destroyed = true;
-				// If it's not the last ball, restart
-				if (self.controller.balls_remaining > 1) {
-					room_restart();
-					return;
-				}
-			}
-
 			// Decrease remaining balls count
 			if (ball.ball_number !== 0) {
 				// Don't count white ball
@@ -162,17 +152,17 @@ create_object({
 			self.y = white_ball.y;
 
 			// Rotate with 4 and 6 buttons
-			if (gm.keys_pressed["4"]) {
+			if (gm.keys_pressed["4"] || gm.keys_pressed["ArrowLeft"]) {
 				self.target_angle -= self.rotation_speed;
 			}
-			if (gm.keys_pressed["6"]) {
+			if (gm.keys_pressed["6"] || gm.keys_pressed["ArrowRight"]) {
 				self.target_angle += self.rotation_speed;
 			}
 
 			self.image_angle = self.target_angle;
 
 			// Handle shooting with button 5
-			if (gm.keys_pressed["5"]) {
+			if (gm.keys_pressed["5"] || gm.keys_pressed["ArrowUp"] || gm.keys_pressed["ArrowDown"]) {
 				self.pulling = true;
 				self.power = Math.min(self.power + 0.5, self.max_power);
 			} else if (self.pulling) {
@@ -259,6 +249,9 @@ create_room({
 	fps: 60,
 	bg_color: "#076324", // Pool table green
 	setup() {
+		// Create controller
+		instance_create("obj_ctrl", 0, 0);
+
 		// Create white ball
 		const white_ball = create_ball(80, 120, 0);
 		instance_save("white_ball", white_ball);
@@ -285,7 +278,7 @@ create_room({
 		}
 
 		// Calculate hole positions
-		const wall_inset = 10;
+		const wall_inset = 12;
 		const table_width = config.viewport_width / config.scale;
 		const table_height = config.viewport_height / config.scale;
 
@@ -311,7 +304,7 @@ create_room({
 		}
 
 		// Create cue
-		return [{ id: "obj_frame", z: -1 }, { id: "obj_cue" }, { id: "obj_ctrl" }];
+		return [{ id: "obj_frame", z: -1 }, { id: "obj_cue" }];
 	},
 	camera: {
 		x: 0,

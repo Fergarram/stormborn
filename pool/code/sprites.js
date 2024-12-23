@@ -18,17 +18,6 @@ create_sprite({
 	origin_y: 8,
 });
 
-// Cue stick
-create_sprite({
-	id: "spr_cue",
-	filepath: "assets/stick.png",
-	frames: 1,
-	frame_width: 32,
-	frame_height: 4,
-	origin_x: 0,
-	origin_y: 2,
-});
-
 create_sprite({
 	id: "spr_wood",
 	filepath: "assets/wood.png",
