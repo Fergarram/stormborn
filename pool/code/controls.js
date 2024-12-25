@@ -14,6 +14,41 @@ const buttons = {
 	"#": document.getElementById("button_hash"),
 };
 
+const game_element = document.getElementById("game");
+let current_rotation = 0;
+
+function rotate_game(direction) {
+	if (direction === "right") {
+		current_rotation += 90;
+	} else {
+		current_rotation -= 90;
+	}
+
+	// Apply rotation
+	game_element.firstElementChild.style.transform = `rotate(${current_rotation}deg)`;
+
+	// Update classes for dimension handling
+	game_element.firstElementChild.classList.remove("rotated-0", "rotated-90", "rotated-180", "rotated-270");
+	game_element.firstElementChild.classList.add(`rotated-${current_rotation}`);
+}
+
+function handle_rotation_key(key) {
+	switch (key) {
+		case "1":
+			rotate_game("left");
+			break;
+		case "3":
+			rotate_game("right");
+			break;
+		case "7":
+			rotate_game("left");
+			break;
+		case "9":
+			rotate_game("right");
+			break;
+	}
+}
+
 function simulate_key_event(key_code, type) {
 	const event = new KeyboardEvent(type, {
 		key: key_code,
@@ -24,6 +59,11 @@ function simulate_key_event(key_code, type) {
 		cancelable: true,
 	});
 	document.dispatchEvent(event);
+
+	// Only handle rotation on keydown
+	if (type === "keydown") {
+		handle_rotation_key(key_code);
+	}
 }
 
 // Add event listeners for each button

@@ -2,9 +2,37 @@
 create_object({
 	id: "obj_ctrl",
 	create(self) {
-		self.balls_remaining = 10; // Total non-white balls
+		self.balls_remaining = 10;
 		self.black_ball_destroyed = false;
+		self.game_over = false;
+		self.shots_taken = 0;
+		self.show_results = false;
 		instance_save("obj_ctrl", self);
+	},
+	draw(self) {
+		if (self.show_results) {
+			// Draw text
+			gm.ctx.fillStyle = "white";
+			gm.ctx.font = "32px Arial";
+			gm.ctx.textAlign = "center";
+			const center_x = config.viewport_width / config.scale / 2;
+			const center_y = config.viewport_height / config.scale / 2;
+
+			gm.ctx.font = "16px Arial";
+			gm.ctx.fillText(self.balls_remaining > 0 ? "YOU LOST WITH" : "YOU WON WITH", center_x, center_y - 36);
+			gm.ctx.font = "32px Arial";
+			gm.ctx.fillText(`${self.shots_taken} MOVE${self.shots_taken === 1 ? "" : "S"}`, center_x, center_y);
+			gm.ctx.font = "14px Arial";
+			gm.ctx.fillText('Press "..." to restart', center_x, center_y + 64);
+		}
+	},
+	step(dt, self) {
+		if (self.show_results) {
+			const keys = ["0", "Space", "*", "#"];
+			if (keys.some((key) => gm.keys_pressed[key])) {
+				room_restart();
+			}
+		}
 	},
 });
 
@@ -19,6 +47,15 @@ create_object({
 		self.image_speed = 0;
 		self.acc_x = 0;
 		self.acc_y = 0;
+		self.falling = false;
+		self.fall_target_x = 0;
+		self.fall_target_y = 0;
+		self.min_scale = 0.8; // This controls how small the ball will get
+		self.fall_speed = 0.1; // Controls how fast the ball moves to the hole
+		self.fade_speed = 0.05; // Controls how fast the ball fades out
+		self.rotation = 0;
+		self.rotation_speed = 0;
+		self.stripe_offset = 0;
 
 		// Smoothness control parameters
 		self.friction = 0.98;
@@ -26,9 +63,80 @@ create_object({
 		self.min_speed = 0.01; // Minimum speed before stopping completely
 		self.bounce_factor = 0.8; // How bouncy the balls are against walls (0-1)
 		self.collision_elasticity = 0.95; // How elastic ball-to-ball collisions are (0-1)
+
+		// Add these new properties for animation control
+		self.animation_acc = 0; // Accumulated animation progress
+		self.animation_threshold = 1; // How much to accumulate before frame change
+		self.min_animation_speed = 0.01; // Minimum speed before animation stops
+		self.last_x = self.x; // Track previous position to determine direction
+		self.last_y = self.y; // Track previous position to determine direction
+		self.moving_right = true; // Track movement direction
 	},
 	step(dt, self) {
 		const wall_size = 23;
+		const speed = Math.sqrt(self.speed_x * self.speed_x + self.speed_y * self.speed_y);
+
+		// @TODO: This problem requires 3d rendered sprites...
+		if (false) {
+			// Determine primary direction of movement
+			if (speed > self.min_animation_speed) {
+				const dx = self.x - self.last_x;
+				const dy = self.y - self.last_y;
+
+				// Use horizontal movement as primary direction indicator
+				// If moving more vertically, use vertical movement instead
+				if (Math.abs(dx) > Math.abs(dy)) {
+					self.moving_right = dx > 0;
+				} else {
+					self.moving_right = dy > 0;
+				}
+			}
+
+			// Accumulate animation progress based on speed
+			self.animation_acc += speed * 0.2;
+
+			// Update frame when accumulated progress reaches threshold
+			if (self.animation_acc >= self.animation_threshold) {
+				if (self.moving_right) {
+					self.image_index = (self.image_index + 1) % 17;
+				} else {
+					self.image_index = (self.image_index - 1 + 17) % 17;
+				}
+				self.animation_acc -= self.animation_threshold;
+			}
+
+			// Stop animation if speed is very low
+			if (speed < self.min_animation_speed) {
+				self.animation_acc = 0;
+			}
+
+			// Store current position for next frame
+			self.last_x = self.x;
+			self.last_y = self.y;
+		}
+
+		if (self.falling) {
+			// Move towards hole
+			const dx = self.fall_target_x - self.x;
+			const dy = self.fall_target_y - self.y;
+			self.x += dx * self.fall_speed;
+			self.y += dy * self.fall_speed;
+
+			// Fade out
+			self.image_alpha -= self.fade_speed;
+
+			// Subtle shrink effect - will only shrink to min_scale
+			const scale = Math.max(self.min_scale, self.image_alpha);
+			self.image_scale_x = scale;
+			self.image_scale_y = scale;
+
+			// Destroy when completely faded
+			if (self.image_alpha <= 0) {
+				instance_destroy(self);
+			}
+
+			return;
+		}
 
 		// Accumulate sub-pixel movement
 		self.acc_x += self.speed_x;
@@ -57,11 +165,20 @@ create_object({
 			self.speed_x *= -self.bounce_factor;
 			self.acc_x = 0;
 			self.x = Math.min(Math.max(self.x, wall_size), config.viewport_width / config.scale - wall_size);
+
+			// Play wall hit sound with volume based on speed
+			const wall_hit_speed = Math.abs(self.speed_x);
+			const volume = Math.max(0.05, Math.min(0.3, wall_hit_speed / 5));
+			play_sound("snd_wall", { volume });
 		}
 		if (self.y < wall_size || self.y > config.viewport_height / config.scale - wall_size) {
 			self.speed_y *= -self.bounce_factor;
 			self.acc_y = 0;
 			self.y = Math.min(Math.max(self.y, wall_size), config.viewport_height / config.scale - wall_size);
+
+			const wall_hit_speed = Math.abs(self.speed_y);
+			const volume = Math.max(0.05, Math.min(0.3, wall_hit_speed / 5));
+			play_sound("snd_wall", { volume });
 		}
 
 		// Ball collision
@@ -100,6 +217,11 @@ create_object({
 				self.speed_y += impulse * ny;
 				other.speed_x -= impulse * nx;
 				other.speed_y -= impulse * ny;
+
+				// Calculate collision speed for volume
+				const collision_speed = Math.sqrt(dvx * dvx + dvy * dvy);
+				const volume = Math.max(0.05, Math.min(0.3, collision_speed / 8));
+				play_sound("snd_ball", { volume });
 			}
 		}
 	},
@@ -115,98 +237,138 @@ create_object({
 		const balls = objects_colliding(self, "obj_ball");
 
 		for (const ball of balls) {
+			// Skip if ball is already falling
+			if (ball.falling) continue;
+
+			// Start the falling animation
+			ball.falling = true;
+			ball.fall_target_x = self.x;
+			ball.fall_target_y = self.y;
+			ball.speed_x = 0;
+			ball.speed_y = 0;
+
+			// Play hole sound
+			play_sound("snd_hole", { volume: 0.7 });
+
 			// Check if it's the white ball
 			if (ball.ball_number === 0) {
-				room_restart();
+				// Wait for fall animation to complete before showing results
+				self.controller.game_over = true;
+				setTimeout(() => {
+					self.controller.show_results = true;
+				}, 1000);
 				return;
 			}
 
 			// Decrease remaining balls count
 			if (ball.ball_number !== 0) {
-				// Don't count white ball
 				self.controller.balls_remaining--;
 			}
-
-			instance_destroy(ball);
 		}
 	},
 });
 
 create_object({
 	id: "obj_cue",
+	sprite: "spr_cue",
 	create(self) {
 		self.power = 0;
 		self.max_power = 15;
 		self.pulling = false;
-		self.rotation_speed = 3; // Degrees per step when rotating
+		self.rotation_speed = 3;
 		self.target_angle = 0;
-		self.cue_length = 200; // Fixed cue length in pixels
+		self.base_offset = 100;
+		self.pull_scale = 2;
+		self.is_shooting = false;
+		self.can_apply_physics = false;
+		self.shoot_distance = 15; // How far the cue moves forward when shooting
+		self.bounce_progress = 0; // Animation progress (0 to 1)
+		self.bounce_speed = 0.1; // Speed of the bounce animation
+		self.controller = instance_get("obj_ctrl");
 	},
 	step(dt, self) {
 		const white_ball = instance_get("white_ball");
 		if (!white_ball) return;
 
-		if (!is_any_ball_moving()) {
-			// Position at white ball
-			self.x = white_ball.x;
-			self.y = white_ball.y;
+		if (self.controller.game_over) {
+			self.image_alpha = 0;
+			return;
+		}
 
-			// Rotate with 4 and 6 buttons
-			if (gm.keys_pressed["4"] || gm.keys_pressed["ArrowLeft"]) {
-				self.target_angle -= self.rotation_speed;
-			}
-			if (gm.keys_pressed["6"] || gm.keys_pressed["ArrowRight"]) {
-				self.target_angle += self.rotation_speed;
+		const balls_moving = is_any_ball_moving();
+		// Fade out when balls are moving, fade in when they're not
+		if (balls_moving) {
+			self.image_alpha = Math.max(0, self.image_alpha - 0.1); // Fade out speed
+		} else {
+			self.image_alpha = Math.min(1, self.image_alpha + 0.1); // Fade in speed
+
+			// Only update position when balls are not moving
+			const rad_angle = (self.target_angle * Math.PI) / 180;
+			let offset = self.base_offset;
+
+			if (self.pulling) {
+				offset += self.power * self.pull_scale;
 			}
 
+			// Add shooting animation offset
+			if (self.is_shooting) {
+				if (self.bounce_progress < 0.5) {
+					offset -= self.shoot_distance * (self.bounce_progress * 2);
+				} else {
+					offset -= self.shoot_distance * ((1 - self.bounce_progress) * 2);
+				}
+
+				self.bounce_progress += self.bounce_speed;
+
+				if (self.bounce_progress >= 1) {
+					self.is_shooting = false;
+					self.bounce_progress = 0;
+				}
+			}
+
+			// Update position
+			self.x = white_ball.x - Math.cos(rad_angle) * offset;
+			self.y = white_ball.y - Math.sin(rad_angle) * offset;
 			self.image_angle = self.target_angle;
 
-			// Handle shooting with button 5
-			if (gm.keys_pressed["5"] || gm.keys_pressed["ArrowUp"] || gm.keys_pressed["ArrowDown"]) {
-				self.pulling = true;
-				self.power = Math.min(self.power + 0.5, self.max_power);
-			} else if (self.pulling) {
-				// Shoot!
-				const rad_angle = (self.image_angle * Math.PI) / 180;
-				white_ball.speed_x = Math.cos(rad_angle) * self.power;
-				white_ball.speed_y = Math.sin(rad_angle) * self.power;
-				self.power = 0;
-				self.pulling = false;
-			}
-		}
-	},
-	draw(self) {
-		if (!is_any_ball_moving()) {
-			const ctx = gm.ctx;
-			const white_ball = instance_get("white_ball");
-			if (!white_ball) return;
+			// Only allow controls when cue is visible enough
+			if (self.image_alpha > 0.5) {
+				// Update target angle
+				if (gm.keys_pressed["4"] || gm.keys_pressed["2"] || gm.keys_pressed["ArrowLeft"]) {
+					self.target_angle += self.rotation_speed;
+				}
+				if (gm.keys_pressed["6"] || gm.keys_pressed["8"] || gm.keys_pressed["ArrowRight"]) {
+					self.target_angle -= self.rotation_speed;
+				}
 
-			// Calculate the angle in radians
-			const rad_angle = (self.image_angle * Math.PI) / 180;
+				// Handle shooting
+				if (gm.keys_pressed["5"] || gm.keys_pressed["ArrowUp"] || gm.keys_pressed["ArrowDown"]) {
+					self.pulling = true;
+					self.power = Math.min(self.power + 0.5, self.max_power);
+				} else if (self.pulling) {
+					self.is_shooting = true;
+					self.bounce_progress = 0;
+					self.pulling = false;
 
-			// Calculate direction vector
-			const dx = Math.cos(rad_angle);
-			const dy = Math.sin(rad_angle);
+					// Increment shots counter
+					self.controller.shots_taken++;
 
-			// Calculate cue start and end points
-			const back_offset = self.pulling ? 20 + self.power * 2 : 20;
-			const start_x = white_ball.x - dx * back_offset;
-			const start_y = white_ball.y - dy * back_offset;
-			const end_x = start_x - dx * self.cue_length; // Use fixed length
-			const end_y = start_y - dy * self.cue_length; // Use fixed length
+					setTimeout(() => {
+						self.can_apply_physics = true;
+					}, 100);
+				}
 
-			// Draw the cue
-			ctx.beginPath();
-			ctx.moveTo(start_x, start_y);
-			ctx.lineTo(end_x, end_y);
-			ctx.strokeStyle = self.pulling ? "rgba(255, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)";
-			ctx.lineWidth = 2;
-			ctx.stroke();
+				if (self.can_apply_physics) {
+					white_ball.speed_x = Math.cos(rad_angle) * self.power;
+					white_ball.speed_y = Math.sin(rad_angle) * self.power;
 
-			// Draw the power meter if pulling
-			if (self.pulling) {
-				ctx.fillStyle = "red";
-				ctx.fillRect(10, 10, (self.power / self.max_power) * 100, 10);
+					// Play hit sound with volume based on power
+					const volume = Math.max(0.1, Math.min(0.5, (self.power / self.max_power) * 0.8));
+					play_sound("snd_hit", { volume });
+
+					self.power = 0;
+					self.can_apply_physics = false;
+				}
 			}
 		}
 	},
@@ -229,10 +391,14 @@ function is_any_ball_moving() {
 function create_ball(x, y, number) {
 	const ball = instance_create("obj_ball", x, y);
 	if (number === 0) {
-		ball.sprite = "spr_ball_white";
+		// ball.sprite = "spr_ball_animated"; // Use the new animated sprite
+		ball.sprite = "spr_ball_white"; // Use the new animated sprite
+		ball.base_image_speed = 0; // Start with no animation
+	} else {
+		ball.sprite = "spr_balls";
+		ball.image_index = number;
 	}
 	ball.ball_number = number;
-	ball.image_index = number;
 	return ball;
 }
 
@@ -250,7 +416,7 @@ create_room({
 	bg_color: "#076324", // Pool table green
 	setup() {
 		// Create controller
-		instance_create("obj_ctrl", 0, 0);
+		instance_create("obj_ctrl", 0, 0, 1000);
 
 		// Create white ball
 		const white_ball = create_ball(80, 120, 0);

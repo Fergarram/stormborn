@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Rotated Sprite Strips</title>
+		<style>
+			.canvas-row {
+				margin: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="canvasContainer"></div>
+
+		<script>
+			const container = document.getElementById("canvasContainer");
+			const angles = 16; // Number of different angles
+			const angleStep = 360 / angles; // 22.5 degrees per step
+
+			for (let a = 0; a < angles; a++) {
+				// Create canvas element
+				const canvas = document.createElement("canvas");
+				canvas.width = 272;
+				canvas.height = 16;
+				canvas.style.display = "block";
+				canvas.style.margin = "5px";
+				container.appendChild(canvas);
+
+				const ctx = canvas.getContext("2d");
+
+				const frameWidth = 16;
+				const frameHeight = 16;
+				const totalFrames = 17;
+				const rectWidth = 4;
+				const rectHeight = 64; // Extended height to ensure coverage when rotated
+				const angle = a * angleStep;
+
+				// Fill entire canvas with red background
+				ctx.fillStyle = "red";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				// Draw each frame
+				for (let frame = 0; frame < totalFrames; frame++) {
+					let frameX = frame * frameWidth;
+
+					// Save context state
+					ctx.save();
+
+					// Move to center of current frame
+					ctx.translate(frameX + frameWidth / 2, frameHeight / 2);
+
+					// Rotate
+					ctx.rotate((angle * Math.PI) / 180);
+
+					// Draw white rectangle
+					ctx.fillStyle = "white";
+					ctx.fillRect(-rectWidth / 2, -rectHeight / 2, rectWidth, rectHeight);
+
+					// Restore context state
+					ctx.restore();
+				}
+
+				// Add angle label
+				const label = document.createElement("span");
+				label.textContent = `${angle.toFixed(1)}°`;
+				label.style.marginLeft = "5px";
+				container.appendChild(label);
+				container.appendChild(document.createElement("br"));
+			}
+		</script>
+	</body>
+</html>
