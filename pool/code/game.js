@@ -325,12 +325,24 @@ create_object({
 		self.pull_scale = 1;
 		self.is_shooting = false;
 		self.can_apply_physics = false;
+		self.show_guide_line = false;
+		self.toggle_cooldown = 0;
+		self.toggle_cooldown_max = 10;
 		self.shoot_distance = 15; // How far the cue moves forward when shooting
 		self.bounce_progress = 0; // Animation progress (0 to 1)
 		self.bounce_speed = 0.1; // Speed of the bounce animation
 		self.controller = instance_get("obj_ctrl");
 	},
 	step(dt, self) {
+		if (self.toggle_cooldown > 0) {
+			self.toggle_cooldown--;
+		}
+
+		if ((gm.keys_pressed["*"] || gm.keys_pressed["a"]) && self.toggle_cooldown === 0) {
+			self.show_guide_line = !self.show_guide_line;
+			self.toggle_cooldown = self.toggle_cooldown_max; // Reset cooldown
+		}
+
 		const white_ball = instance_get("white_ball");
 		if (!white_ball) return;
 
@@ -417,40 +429,30 @@ create_object({
 		}
 	},
 	draw(self) {
-		// Only draw the line if the cue is visible enough
-		if (self.image_alpha > 0.5) {
-			const white_ball = instance_get("white_ball");
-			if (!white_ball) return;
+		const white_ball = instance_get("white_ball");
+		if (!white_ball || !self.show_guide_line) return;
 
-			// Calculate the line's start and end points
-			const rad_angle = (self.target_angle * Math.PI) / 180;
+		// Calculate the line's start and end points
+		const rad_angle = (self.target_angle * Math.PI) / 180;
+		const line_length = 320;
 
-			// Line length based on current power
-			const line_length = self.power * 15; // Multiply by 10 to make it more visible
+		// Start from white ball
+		const start_x = white_ball.x;
+		const start_y = white_ball.y;
+		const end_x = start_x + Math.cos(rad_angle) * line_length;
+		const end_y = start_y + Math.sin(rad_angle) * line_length;
 
-			// Start from white ball
-			const start_x = white_ball.x;
-			const start_y = white_ball.y;
+		// Draw dotted line
+		gm.ctx.beginPath();
+		gm.ctx.setLineDash([4, 4]); // Create dotted effect [dash length, gap length]
+		gm.ctx.moveTo(start_x, start_y);
+		gm.ctx.lineTo(end_x, end_y);
+		gm.ctx.strokeStyle = `rgba(255, 255, 255, ${self.image_alpha * 0.2})`;
+		gm.ctx.lineWidth = 2;
+		gm.ctx.stroke();
 
-			// End point based on power
-			const end_x = start_x + Math.cos(rad_angle) * line_length;
-			const end_y = start_y + Math.sin(rad_angle) * line_length;
-
-			// Draw dotted line
-			gm.ctx.beginPath();
-			gm.ctx.setLineDash([4, 4]); // Create dotted effect [dash length, gap length]
-			gm.ctx.moveTo(start_x, start_y);
-			gm.ctx.lineTo(end_x, end_y);
-
-			// Make line color fade with power
-			const alpha = Math.min(0.3 + (self.power / self.max_power) * 0.7, 1);
-			gm.ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
-			gm.ctx.lineWidth = 1;
-			gm.ctx.stroke();
-
-			// Reset line dash to solid
-			gm.ctx.setLineDash([]);
-		}
+		// Reset line dash to solid
+		gm.ctx.setLineDash([]);
 	},
 });
 
