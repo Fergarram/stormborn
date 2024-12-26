@@ -53,9 +53,10 @@ create_object({
 		self.min_scale = 0.8; // This controls how small the ball will get
 		self.fall_speed = 0.1; // Controls how fast the ball moves to the hole
 		self.fade_speed = 0.05; // Controls how fast the ball fades out
-		self.rotation = 0;
-		self.rotation_speed = 0;
-		self.stripe_offset = 0;
+		self.rotation = 0; // Current rotation angle
+		self.angular_velocity = 0; // How fast the ball is rotating
+		self.rotation_friction = 0.98; // How quickly rotation slows down
+		self.spin_factor = 0.2; // How much collision impact converts to spin
 
 		// Smoothness control parameters
 		self.friction = 0.98;
@@ -181,7 +182,13 @@ create_object({
 			play_sound("snd_wall", { volume });
 		}
 
-		// Ball collision
+		// Apply rotation from angular velocity
+		self.rotation += self.angular_velocity;
+
+		// Apply rotation friction
+		self.angular_velocity *= self.rotation_friction;
+
+		// Ball collision (replace the existing collision code)
 		const other_balls = objects_colliding(self, "obj_ball");
 		for (const other of other_balls) {
 			if (other.id === self.id) continue;
@@ -191,6 +198,7 @@ create_object({
 			const dist = point_distance(self.x, self.y, other.x, other.y);
 
 			if (dist < 16) {
+				// Normal collision response
 				const angle = Math.atan2(dy, dx);
 				const overlap = 16 - dist;
 
@@ -207,22 +215,43 @@ create_object({
 				other.acc_x = 0;
 				other.acc_y = 0;
 
+				// Calculate collision normal and relative velocity
 				const nx = dx / dist;
 				const ny = dy / dist;
 				const dvx = other.speed_x - self.speed_x;
 				const dvy = other.speed_y - self.speed_y;
 				const impulse = (dvx * nx + dvy * ny) * self.collision_elasticity;
 
+				// Calculate tangential velocity (perpendicular to normal)
+				const tx = -ny; // Perpendicular to normal
+				const ty = nx;
+				const tv = dvx * tx + dvy * ty; // Tangential velocity
+
+				// Apply linear impulse
 				self.speed_x += impulse * nx;
 				self.speed_y += impulse * ny;
 				other.speed_x -= impulse * nx;
 				other.speed_y -= impulse * ny;
+
+				// Convert some of the tangential velocity into angular velocity
+				self.angular_velocity += tv * self.spin_factor;
+				other.angular_velocity -= tv * self.spin_factor;
 
 				// Calculate collision speed for volume
 				const collision_speed = Math.sqrt(dvx * dvx + dvy * dvy);
 				const volume = Math.max(0.05, Math.min(0.3, collision_speed / 8));
 				play_sound("snd_ball", { volume });
 			}
+		}
+
+		// Add friction to angular velocity when the ball is nearly stopped
+		if (Math.abs(self.speed_x) < 0.1 && Math.abs(self.speed_y) < 0.1) {
+			self.angular_velocity *= 0.95; // Additional friction when nearly stopped
+		}
+
+		// Stop rotation if angular velocity is very small
+		if (Math.abs(self.angular_velocity) < 0.01) {
+			self.angular_velocity = 0;
 		}
 	},
 });
@@ -260,6 +289,21 @@ create_object({
 				return;
 			}
 
+			// Check if it's the black ball
+			if (ball.ball_number === 5) {
+				// If there are still other balls on the table (besides white ball)
+				if (self.controller.balls_remaining > 1) {
+					// > 1 because the black ball itself counts
+					// Game over - lost because black ball was pocketed too early
+					self.controller.game_over = true;
+					self.controller.black_ball_destroyed = true;
+					setTimeout(() => {
+						self.controller.show_results = true;
+					}, 1000);
+					return;
+				}
+			}
+
 			// Decrease remaining balls count
 			if (ball.ball_number !== 0) {
 				self.controller.balls_remaining--;
@@ -275,10 +319,10 @@ create_object({
 		self.power = 0;
 		self.max_power = 15;
 		self.pulling = false;
-		self.rotation_speed = 3;
+		self.rotation_speed = 1;
 		self.target_angle = 0;
 		self.base_offset = 100;
-		self.pull_scale = 2;
+		self.pull_scale = 1;
 		self.is_shooting = false;
 		self.can_apply_physics = false;
 		self.shoot_distance = 15; // How far the cue moves forward when shooting
@@ -372,6 +416,42 @@ create_object({
 			}
 		}
 	},
+	draw(self) {
+		// Only draw the line if the cue is visible enough
+		if (self.image_alpha > 0.5) {
+			const white_ball = instance_get("white_ball");
+			if (!white_ball) return;
+
+			// Calculate the line's start and end points
+			const rad_angle = (self.target_angle * Math.PI) / 180;
+
+			// Line length based on current power
+			const line_length = self.power * 15; // Multiply by 10 to make it more visible
+
+			// Start from white ball
+			const start_x = white_ball.x;
+			const start_y = white_ball.y;
+
+			// End point based on power
+			const end_x = start_x + Math.cos(rad_angle) * line_length;
+			const end_y = start_y + Math.sin(rad_angle) * line_length;
+
+			// Draw dotted line
+			gm.ctx.beginPath();
+			gm.ctx.setLineDash([4, 4]); // Create dotted effect [dash length, gap length]
+			gm.ctx.moveTo(start_x, start_y);
+			gm.ctx.lineTo(end_x, end_y);
+
+			// Make line color fade with power
+			const alpha = Math.min(0.3 + (self.power / self.max_power) * 0.7, 1);
+			gm.ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+			gm.ctx.lineWidth = 1;
+			gm.ctx.stroke();
+
+			// Reset line dash to solid
+			gm.ctx.setLineDash([]);
+		}
+	},
 });
 
 // Helper function
@@ -423,20 +503,20 @@ create_room({
 		instance_save("white_ball", white_ball);
 
 		// Create rack of balls in triangle formation
-		let row = 0;
-		let col = 0;
-		let x = 200;
-		let y = 115;
+		const rack_center_x = 200; // Adjust this value to position the rack horizontally
+		const rack_center_y = config.viewport_height / config.scale / 2; // Center vertically
+		const ball_spacing = 16; // Slightly adjust spacing between balls
 
 		// Standard 8-ball rack arrangement
 		const rack_order = [1, 2, 3, 4, 5, 10, 7, 8, 9, 6];
 		let ball_index = 0;
 
-		for (let row = 0; row < 5; row++) {
+		for (let row = 0; row < 4; row++) {
 			for (let col = 0; col <= row; col++) {
 				if (ball_index < rack_order.length) {
-					const ball_x = Math.round(x + row * 17 * Math.cos(Math.PI / 6));
-					const ball_y = Math.round(y + (col * 17 - (row * 17 * Math.sin(Math.PI / 6)) / 2));
+					// Calculate position relative to rack center
+					const ball_x = Math.round(rack_center_x + row * ball_spacing);
+					const ball_y = Math.round(rack_center_y + (col * ball_spacing - (row * ball_spacing) / 2));
 					create_ball(ball_x, ball_y, rack_order[ball_index]);
 					ball_index++;
 				}
