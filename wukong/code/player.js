@@ -60,10 +60,10 @@ create_object({
 			self.x += self.horizontal_speed;
 
 			// Add minimum x boundary
-			if (self.x < self.initial_x) {
-				self.x = self.initial_x;
-				self.horizontal_speed = 0;
-			}
+			// if (self.x < self.initial_x) {
+			// 	self.x = self.initial_x;
+			// 	self.horizontal_speed = 0;
+			// }
 
 			// Ground collision check
 			if (self.y >= config.viewport_height + self.collision_mask.geom[1] - 18) {
