@@ -447,9 +447,20 @@ create_object({
 		gm.ctx.setLineDash([4, 4]); // Create dotted effect [dash length, gap length]
 		gm.ctx.moveTo(start_x, start_y);
 		gm.ctx.lineTo(end_x, end_y);
-		gm.ctx.strokeStyle = `rgba(255, 255, 255, ${self.image_alpha * 0.2})`;
+		gm.ctx.strokeStyle = `#Dfffdf`;
 		gm.ctx.lineWidth = 2;
+
+		// Save current globalAlpha
+		const current_alpha = gm.ctx.globalAlpha;
+
+		// Apply transparency
+		gm.ctx.globalAlpha = self.image_alpha * 0.5; // You can adjust the 0.5 multiplier to make it more or less transparent
+
+		// Draw the stroke
 		gm.ctx.stroke();
+
+		// Restore original globalAlpha
+		gm.ctx.globalAlpha = current_alpha;
 
 		// Reset line dash to solid
 		gm.ctx.setLineDash([]);
@@ -495,7 +506,7 @@ create_room({
 	width: config.viewport_width / config.scale,
 	height: config.viewport_height / config.scale,
 	fps: 60,
-	bg_color: "#076324", // Pool table green
+	bg_color: "#000",
 	setup() {
 		// Create controller
 		instance_create("obj_ctrl", 0, 0, 1000);
