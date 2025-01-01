@@ -45,6 +45,7 @@ create_object({
         // Round initial position to integers
         self.x = Math.round(self.x);
         self.y = Math.round(self.y);
+        self.z = Math.random() < 0.5 ? 2 : 4;
         
         // Store sub-pixel position tracking
         self.precise_x = self.x;
@@ -70,10 +71,10 @@ create_object({
         self.image_speed = 0;
         self.frame_delay = 20;
         self.will_change_frame = Math.random() < 0.33;
+        self.water_level = 10;
     },
     step(dt, self) {
-        // Stop at water level (8 pixels from top)
-        if (self.y < 12) {
+        if (self.y < self.water_level) {
             instance_destroy(self);
             return;
         }
@@ -107,6 +108,7 @@ create_object({
     create(self) {
         self.x = 32;
         self.y = 32;
+        self.z = 3;
         self.base_speed = 0.5;
         self.speed = self.base_speed;
         self.target_x = self.x;
