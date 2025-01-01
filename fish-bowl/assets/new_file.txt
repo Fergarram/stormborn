@@ -1,0 +1,1 @@
+when the fish does a lot of short moves or a long move it could spawn up to three bubbles. also the bubble chance should increase with each move and decrease until baseline 40%. do not remove the separate bubble timer, fuse them however you see fit.  bubbles should stop going up at water level which is also the top part the fish cant go over.
