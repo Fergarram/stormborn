@@ -114,6 +114,10 @@ async function start_server(): Promise<void> {
 
 async function main(): Promise<void> {
 	try {
+		// Initial build of stormborn.ts
+		console.log("Performing initial build of stormborn.ts...");
+		await build_stormborn_lib();
+
 		// Initial update of index.html
 		const js_files = await get_js_files("code");
 		await update_html_imports(js_files);
