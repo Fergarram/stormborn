@@ -4,7 +4,7 @@ create_object({
 	create(self, { top_parts, bottom_parts }) {
 		self.speed = 3;
 		self.score_added = false;
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 		self.parts = [];
 		let top_column_height = 0;
 		let bottom_column_height = 0;
@@ -64,7 +64,7 @@ create_object({
 				});
 			}
 
-			const goku = instance_get("player");
+			const goku = instance_ref("player");
 			if (goku && goku.x > self.x + self.image_width / 2 && !self.score_added) {
 				self.controller.score++;
 				self.score_added = true;

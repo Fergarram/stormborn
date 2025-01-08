@@ -31,7 +31,7 @@ create_object({
 		self.can_flap = true;
 		self.rotation = 0;
 		instance_save("player", self);
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 	},
 	step(dt, self) {
 		if (!self.controller.game_over) {
@@ -84,7 +84,7 @@ create_object({
 	collision_mask: { type: "rect", geom: [0, 0, 24, 24] },
 	create(self) {
 		self.speed = 3;
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 		self.score_added = false;
 	},
 	step(dt, self) {
@@ -98,7 +98,7 @@ create_object({
 			}
 
 			// Add score when block passes player
-			const player = instance_get("player");
+			const player = instance_ref("player");
 			if (player && player.x > self.x + 12 && !self.score_added) {
 				self.controller.score++;
 				self.score_added = true;
@@ -115,7 +115,7 @@ create_object({
 		self.score = 0;
 		self.game_over = false;
 		instance_save("controller", self);
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 	},
 	step(dt, self) {
 		const room = room_current();

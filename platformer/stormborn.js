@@ -21,6 +21,9 @@ function create_game(config) {
   };
   gm.audio_master_gain = gm.audio_context.createGain();
   gm.audio_master_gain.connect(gm.audio_context.destination);
+  if (gm.config && gm.config.culling_enabled === undefined) {
+    gm.config.culling_enabled = true;
+  }
   let last_frame_time = 0;
   const device_pixel_ratio = window.devicePixelRatio || 1;
   function run_game(start_callback) {
@@ -64,25 +67,11 @@ function create_game(config) {
     canvas.addEventListener("mousedown", (e) => {
       if (!gm.running || !gm.current_room)
         return;
-      const rect = canvas.getBoundingClientRect();
-      const room = gm.rooms[gm.current_room];
-      const camera = room.camera;
-      const scale_x = camera.width / camera.viewport_width;
-      const scale_y = camera.height / camera.viewport_height;
-      const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-      const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
       gm.mouse_buttons_pressed[e.button] = true;
     });
     canvas.addEventListener("mouseup", (e) => {
       if (!gm.running || !gm.current_room)
         return;
-      const rect = canvas.getBoundingClientRect();
-      const room = gm.rooms[gm.current_room];
-      const camera = room.camera;
-      const scale_x = camera.width / camera.viewport_width;
-      const scale_y = camera.height / camera.viewport_height;
-      const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-      const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
       gm.mouse_buttons_pressed[e.button] = false;
     });
     Object.values(gm.objects).forEach((obj) => {
@@ -214,13 +203,31 @@ function create_game(config) {
     if (!obj.id) {
       throw new Error("Object ID is required");
     }
+    const methods = {};
+    const properties = {};
+    Object.entries(obj).forEach(([key, value]) => {
+      if (typeof value === "function" && key !== "setup" && key !== "create" && key !== "destroy" && key !== "step" && key !== "draw" && key !== "mouse_over" && key !== "mouse_out" && key !== "mouse_down" && key !== "mouse_up" && key !== "animation_end" && key !== "room_start" && key !== "room_end") {
+        methods[key] = value;
+      } else {
+        properties[key] = value;
+      }
+    });
     const default_obj = {
       id: "",
       collision_mask: { type: "rect", geom: [0, 0, 0, 0] },
       tile_layer: null,
       sprite: null
     };
-    const merged_obj = { ...default_obj, ...obj };
+    const original_create = properties.create;
+    properties.create = (instance, props) => {
+      Object.entries(methods).forEach(([key, method]) => {
+        instance[key] = (...args) => method(instance, ...args);
+      });
+      if (original_create) {
+        original_create(instance, props);
+      }
+    };
+    const merged_obj = { ...default_obj, ...properties };
     gm.objects[merged_obj.id] = merged_obj;
   }
   function create_sound(sound) {
@@ -325,6 +332,25 @@ function create_game(config) {
     const image = gm.images[instance.sprite];
     const sprite = gm.sprites[instance.sprite];
     const ctx = gm.ctx;
+    if (gm.config && gm.config.culling_enabled) {
+      const room = gm.rooms[gm.current_room];
+      const camera = room.camera;
+      const scaled_width = sprite.frame_width * Math.abs(instance.image_scale_x);
+      const scaled_height = sprite.frame_height * Math.abs(instance.image_scale_y);
+      const scaled_origin_x = sprite.origin_x * Math.abs(instance.image_scale_x);
+      const scaled_origin_y = sprite.origin_y * Math.abs(instance.image_scale_y);
+      const bounds = {
+        left: instance.x - scaled_origin_x,
+        right: instance.x - scaled_origin_x + scaled_width,
+        top: instance.y - scaled_origin_y,
+        bottom: instance.y - scaled_origin_y + scaled_height
+      };
+      if (bounds.right < camera.x || bounds.left > camera.x + camera.width || bounds.bottom < camera.y || bounds.top > camera.y + camera.height) {
+        instance.is_culled = true;
+        return;
+      }
+    }
+    instance.is_culled = false;
     instance.image_clock += 1;
     if (sprite.frames > 1 && instance.image_speed !== 0) {
       if (instance.image_clock >= instance.image_speed) {
@@ -404,15 +430,20 @@ function create_game(config) {
     }
     return colliding_instances;
   }
-  function instance_save(key, instance) {
+  function instance_ref(key, instance) {
     const room = gm.rooms[gm.current_room];
-    room.instance_refs[key] = instance.id;
+    if (instance === undefined) {
+      return room.instances[room.instance_refs[key]];
+    } else {
+      room.instance_refs[key] = instance.id;
+      return instance;
+    }
   }
-  function instance_get(key) {
+  function instance_unref(key) {
     const room = gm.rooms[gm.current_room];
-    return room.instances[room.instance_refs[key]];
+    delete room.instance_refs[key];
   }
-  function instance_create(obj_id) {
+  function instance_create(obj_id, x, y, z, props) {
     const room = gm.rooms[gm.current_room];
     const obj = gm.objects[obj_id];
     if (!obj)
@@ -427,9 +458,9 @@ function create_game(config) {
     const instance = {
       id: unique_id(),
       object_id: obj_id,
-      x: 0,
-      y: 0,
-      z: 0,
+      x: x || 0,
+      y: y || 0,
+      z: z || 0,
       collision_mask: obj.collision_mask,
       tile_layer: obj.tile_layer,
       sprite: obj.sprite,
@@ -450,7 +481,7 @@ function create_game(config) {
     }
     room.object_index[obj_id].push(instance.id);
     if (obj.create) {
-      obj.create(instance);
+      obj.create(instance, props);
     }
     return instance;
   }
@@ -569,6 +600,13 @@ function create_game(config) {
     });
     call_objects_room_start(room_id);
   }
+  async function room_restart() {
+    if (!gm.current_room) {
+      throw new Error("No room is currently active");
+    }
+    await requeue();
+    room_goto(gm.current_room);
+  }
   function room_current() {
     return gm.current_room ? gm.rooms[gm.current_room] : null;
   }
@@ -599,13 +637,14 @@ function create_game(config) {
     create_sound,
     run_game,
     room_goto,
+    room_restart,
     room_current,
     play_sound,
     stop_sound,
     sound_volume,
     master_volume,
-    instance_save,
-    instance_get,
+    instance_ref,
+    instance_unref,
     instances_colliding,
     instance_create,
     instance_count,
@@ -614,6 +653,9 @@ function create_game(config) {
     objects_colliding,
     animation_ended
   };
+}
+function requeue(time = 0) {
+  return new Promise((resolve) => setTimeout(resolve, time));
 }
 function point_distance(x1, y1, x2, y2) {
   const dx = x2 - x1;
@@ -635,7 +677,7 @@ function unique_id() {
     throw new Error("Crypto functionality not available");
   }
 }
-var stormborn_default = { create_game, point_distance, point_direction, unique_id };
+var stormborn_default = { create_game, point_distance, point_direction, unique_id, requeue };
 export {
   stormborn_default as default
 };

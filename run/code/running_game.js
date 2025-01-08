@@ -104,7 +104,7 @@ create_object({
 
 		if (self.x > 320 - 32 / 3) {
 			self.finished = true;
-			instance_get("obj_game_controller").playerFinished(self.playerNumber);
+			instance_ref("obj_game_controller").playerFinished(self.playerNumber);
 		}
 	},
 });

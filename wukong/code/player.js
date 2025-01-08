@@ -19,7 +19,7 @@ create_object({
 		self.on_ground = false;
 		self.initial_x = config.viewport_width / (4 * config.scale);
 		instance_save("player", self);
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 	},
 	step(dt, self) {
 		if (!self.controller.game_over) {

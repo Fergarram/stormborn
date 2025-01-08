@@ -3,7 +3,8 @@ type SB_Config = {
 	description: string;
 	image_smoothing_enabled: boolean;
 	container: HTMLElement | null;
-	debug: boolean;
+	debug?: boolean;
+	culling_enabled?: boolean;
 };
 
 type SB_Game = {
@@ -46,13 +47,15 @@ type SB_Sound = {
 	source: AudioBufferSourceNode | null;
 };
 
+type SB_Method = (self: SB_Instance, ...args: any[]) => any;
+
 type SB_Object = {
 	id: string;
 	collision_mask: SB_Mask;
 	tile_layer: string | null;
 	sprite: string | null;
 	setup?: (obj_id: string) => void;
-	create?: (self: SB_Instance) => void;
+	create?: (self: SB_Instance, props?: {}) => void;
 	destroy?: (self: SB_Instance) => void;
 	step?: (dt: number, self: SB_Instance) => void;
 	draw?: (self: SB_Instance) => void;
@@ -63,6 +66,7 @@ type SB_Object = {
 	animation_end?: (self: SB_Instance) => void;
 	room_start?: (self: SB_Instance) => void;
 	room_end?: (self: SB_Instance) => void;
+	[key: string]: SB_Method | any;
 };
 
 type SB_Instance = {
@@ -74,8 +78,9 @@ type SB_Instance = {
 	collision_mask: SB_Mask;
 	tile_layer: string | null;
 	sprite: string | null;
-	image_index: number;
+	is_culled?: boolean;
 	direction: number;
+	image_index: number;
 	image_speed: number;
 	image_scale_x: number;
 	image_scale_y: number;
@@ -158,6 +163,10 @@ function create_game(config: SB_Config) {
 	gm.audio_master_gain = gm.audio_context.createGain();
 	gm.audio_master_gain.connect(gm.audio_context.destination);
 
+	if (gm.config && gm.config.culling_enabled === undefined) {
+		gm.config.culling_enabled = true;
+	}
+
 	let last_frame_time = 0;
 	const device_pixel_ratio = window.devicePixelRatio || 1;
 
@@ -212,15 +221,15 @@ function create_game(config: SB_Config) {
 		canvas.addEventListener("mousedown", (e) => {
 			if (!gm.running || !gm.current_room) return;
 
-			const rect = canvas.getBoundingClientRect();
-			const room = gm.rooms[gm.current_room];
-			const camera = room.camera;
+			// const rect = canvas.getBoundingClientRect();
+			// const room = gm.rooms[gm.current_room];
+			// const camera = room.camera;
 
-			const scale_x = camera.width / camera.viewport_width;
-			const scale_y = camera.height / camera.viewport_height;
+			// const scale_x = camera.width / camera.viewport_width;
+			// const scale_y = camera.height / camera.viewport_height;
 
-			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
+			// const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
+			// const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
 
 			gm.mouse_buttons_pressed[e.button] = true;
 		});
@@ -228,15 +237,15 @@ function create_game(config: SB_Config) {
 		canvas.addEventListener("mouseup", (e) => {
 			if (!gm.running || !gm.current_room) return;
 
-			const rect = canvas.getBoundingClientRect();
-			const room = gm.rooms[gm.current_room];
-			const camera = room.camera;
+			// const rect = canvas.getBoundingClientRect();
+			// const room = gm.rooms[gm.current_room];
+			// const camera = room.camera;
 
-			const scale_x = camera.width / camera.viewport_width;
-			const scale_y = camera.height / camera.viewport_height;
+			// const scale_x = camera.width / camera.viewport_width;
+			// const scale_y = camera.height / camera.viewport_height;
 
-			const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
-			const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
+			// const mouse_x = (e.clientX - rect.left) * scale_x + camera.x;
+			// const mouse_y = (e.clientY - rect.top) * scale_y + camera.y;
 
 			gm.mouse_buttons_pressed[e.button] = false;
 		});
@@ -388,7 +397,6 @@ function create_game(config: SB_Config) {
 						obj.animation_end(instance);
 					}
 
-					// @TODO: Implement culled drawing, meaning only draw instances that are visible on screen
 					if (instance.sprite) {
 						draw_sprite(instance);
 					} else if (instance.tile_layer) {
@@ -434,6 +442,35 @@ function create_game(config: SB_Config) {
 			throw new Error("Object ID is required");
 		}
 
+		// Separate methods from other properties
+		const methods: Record<string, SB_Method> = {};
+		const properties: Partial<SB_Object> = {};
+
+		// Loop through all keys in the object
+		Object.entries(obj).forEach(([key, value]) => {
+			if (
+				typeof value === "function" &&
+				key !== "setup" &&
+				key !== "create" &&
+				key !== "destroy" &&
+				key !== "step" &&
+				key !== "draw" &&
+				key !== "mouse_over" &&
+				key !== "mouse_out" &&
+				key !== "mouse_down" &&
+				key !== "mouse_up" &&
+				key !== "animation_end" &&
+				key !== "room_start" &&
+				key !== "room_end"
+			) {
+				// It's a custom method
+				methods[key] = value as SB_Method;
+			} else {
+				// It's a regular property or lifecycle method
+				properties[key] = value;
+			}
+		});
+
 		const default_obj: SB_Object = {
 			id: "",
 			collision_mask: { type: "rect", geom: [0, 0, 0, 0] },
@@ -441,8 +478,21 @@ function create_game(config: SB_Config) {
 			sprite: null,
 		};
 
-		const merged_obj = { ...default_obj, ...obj };
+		// Modify the create method to attach methods to the instance
+		const original_create = properties.create;
+		properties.create = (instance: SB_Instance, props?: {}) => {
+			// Attach all custom methods to the instance
+			Object.entries(methods).forEach(([key, method]) => {
+				instance[key] = (...args: any[]) => method(instance, ...args);
+			});
 
+			// Call the original create method if it exists
+			if (original_create) {
+				original_create(instance, props);
+			}
+		};
+
+		const merged_obj = { ...default_obj, ...properties };
 		gm.objects[merged_obj.id] = merged_obj;
 	}
 
@@ -572,6 +622,36 @@ function create_game(config: SB_Config) {
 		const sprite = gm.sprites[instance.sprite];
 		const ctx = gm.ctx;
 
+		// Only perform culling if enabled in config
+		if (gm.config && gm.config.culling_enabled) {
+			const room = gm.rooms[gm.current_room!];
+			const camera = room.camera;
+
+			// Calculate actual dimensions after scaling
+			const scaled_width = sprite.frame_width * Math.abs(instance.image_scale_x);
+			const scaled_height = sprite.frame_height * Math.abs(instance.image_scale_y);
+			const scaled_origin_x = sprite.origin_x * Math.abs(instance.image_scale_x);
+			const scaled_origin_y = sprite.origin_y * Math.abs(instance.image_scale_y);
+			const bounds = {
+				left: instance.x - scaled_origin_x,
+				right: instance.x - scaled_origin_x + scaled_width,
+				top: instance.y - scaled_origin_y,
+				bottom: instance.y - scaled_origin_y + scaled_height,
+			};
+
+			// Cull if completely outside camera view
+			if (
+				bounds.right < camera.x ||
+				bounds.left > camera.x + camera.width ||
+				bounds.bottom < camera.y ||
+				bounds.top > camera.y + camera.height
+			) {
+				instance.is_culled = true;
+				return;
+			}
+		}
+
+		instance.is_culled = false;
 		instance.image_clock += 1;
 
 		if (sprite.frames > 1 && instance.image_speed !== 0) {
@@ -694,17 +774,25 @@ function create_game(config: SB_Config) {
 		return colliding_instances;
 	}
 
-	function instance_save(key: string, instance: SB_Instance) {
+	function instance_ref(key: string, instance?: SB_Instance): SB_Instance | undefined {
 		const room = gm.rooms[gm.current_room!];
-		room.instance_refs[key] = instance.id;
+
+		if (instance === undefined) {
+			// Get mode
+			return room.instances[room.instance_refs[key]];
+		} else {
+			// Set mode
+			room.instance_refs[key] = instance.id;
+			return instance;
+		}
 	}
 
-	function instance_get(key: string): SB_Instance | undefined {
+	function instance_unref(key: string): void {
 		const room = gm.rooms[gm.current_room!];
-		return room.instances[room.instance_refs[key]];
+		delete room.instance_refs[key];
 	}
 
-	function instance_create(obj_id: string): SB_Instance {
+	function instance_create(obj_id: string, x?: number, y?: number, z?: number, props?: {}): SB_Instance {
 		const room = gm.rooms[gm.current_room!];
 		const obj = gm.objects[obj_id];
 		if (!obj) throw new Error(`Object with id ${obj_id} not found`);
@@ -719,9 +807,9 @@ function create_game(config: SB_Config) {
 		const instance: SB_Instance = {
 			id: unique_id(),
 			object_id: obj_id,
-			x: 0,
-			y: 0,
-			z: 0,
+			x: x || 0,
+			y: y || 0,
+			z: z || 0,
 			collision_mask: obj.collision_mask,
 			tile_layer: obj.tile_layer,
 			sprite: obj.sprite,
@@ -746,7 +834,7 @@ function create_game(config: SB_Config) {
 		room.object_index[obj_id].push(instance.id);
 
 		if (obj.create) {
-			obj.create(instance);
+			obj.create(instance, props);
 		}
 
 		return instance;
@@ -869,6 +957,7 @@ function create_game(config: SB_Config) {
 		}
 
 		gm.current_room = room_id;
+
 		const room = gm.rooms[room_id];
 		room.camera.x = 0;
 		room.camera.y = 0;
@@ -896,6 +985,16 @@ function create_game(config: SB_Config) {
 
 		// Run room start event
 		call_objects_room_start(room_id);
+	}
+
+	async function room_restart() {
+		if (!gm.current_room) {
+			throw new Error("No room is currently active");
+		}
+
+		await requeue();
+
+		room_goto(gm.current_room);
 	}
 
 	function room_current() {
@@ -931,13 +1030,14 @@ function create_game(config: SB_Config) {
 		create_sound,
 		run_game,
 		room_goto,
+		room_restart,
 		room_current,
 		play_sound,
 		stop_sound,
 		sound_volume,
 		master_volume,
-		instance_save,
-		instance_get,
+		instance_ref,
+		instance_unref,
 		instances_colliding,
 		instance_create,
 		instance_count,
@@ -951,6 +1051,10 @@ function create_game(config: SB_Config) {
 //
 // General Utils
 //
+
+function requeue(time = 0) {
+	return new Promise((resolve) => setTimeout(resolve, time));
+}
 
 function point_distance(x1: number, y1: number, x2: number, y2: number): number {
 	const dx = x2 - x1;
@@ -980,4 +1084,4 @@ function unique_id(): string {
 		throw new Error("Crypto functionality not available");
 	}
 }
-export default { create_game, point_distance, point_direction, unique_id };
+export default { create_game, point_distance, point_direction, unique_id, requeue };

@@ -260,7 +260,7 @@ create_object({
 	id: "obj_hole",
 	collision_mask: { type: "circle", geom: [6] },
 	create(self) {
-		self.controller = instance_get("obj_ctrl");
+		self.controller = instance_ref("obj_ctrl");
 	},
 	step(dt, self) {
 		const balls = objects_colliding(self, "obj_ball");
@@ -331,7 +331,7 @@ create_object({
 		self.shoot_distance = 15; // How far the cue moves forward when shooting
 		self.bounce_progress = 0; // Animation progress (0 to 1)
 		self.bounce_speed = 0.1; // Speed of the bounce animation
-		self.controller = instance_get("obj_ctrl");
+		self.controller = instance_ref("obj_ctrl");
 	},
 	step(dt, self) {
 		if (self.toggle_cooldown > 0) {
@@ -343,7 +343,7 @@ create_object({
 			self.toggle_cooldown = self.toggle_cooldown_max; // Reset cooldown
 		}
 
-		const white_ball = instance_get("white_ball");
+		const white_ball = instance_ref("white_ball");
 		if (!white_ball) return;
 
 		if (self.controller.game_over) {
@@ -429,7 +429,7 @@ create_object({
 		}
 	},
 	draw(self) {
-		const white_ball = instance_get("white_ball");
+		const white_ball = instance_ref("white_ball");
 		if (!white_ball || !self.show_guide_line) return;
 
 		// Calculate the line's start and end points

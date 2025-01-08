@@ -94,7 +94,7 @@ create_object({
 
 		// Create the hands
 		const hands = instance_create("obj_player_hands", self.x, self.y);
-		instance_save("player", self);
+		instance_ref("player", self);
 	},
 	step(dt, self) {
 		const room = room_current();
@@ -141,7 +141,7 @@ create_object({
 		self.held_ball = null;
 	},
 	step(dt, self) {
-		const player = instance_get("player");
+		const player = instance_ref("player");
 		if (player) {
 			if (player.transition_timer > 0) {
 				// During transition, place hands at the center

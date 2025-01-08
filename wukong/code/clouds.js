@@ -3,7 +3,7 @@ create_object({
 	create: (self) => {
 		self.spawn_timer = 0;
 		self.spawn_interval = 120; // Adjust for more/less frequent spawns
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 
 		// Spawn initial clouds
 		const num_initial_clouds = 3; // Adjust this number for more/less initial clouds
@@ -57,7 +57,7 @@ create_object({
 		// Random slight transparency
 		self.image_alpha = 0.7 + Math.random() * 0.3; // Alpha between 0.7 and 1
 
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 	},
 	step: (dt, self) => {
 		if (self.controller.game_over) {

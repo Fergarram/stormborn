@@ -1,2 +1,2 @@
 TODO:
-- [ ] Multiple strips in a single 1d sprite
+- [ ] Make cameras into first class citizens: GM_Camera, you can have many views for a single room.

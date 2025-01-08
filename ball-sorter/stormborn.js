@@ -420,7 +420,7 @@ function create_game(config) {
 		const room = gm.rooms[gm.current_room];
 		room.instance_refs[key] = instance.id;
 	}
-	function instance_get(key) {
+	function instance_ref(key) {
 		const room = gm.rooms[gm.current_room];
 		return room.instances[room.instance_refs[key]];
 	}
@@ -618,7 +618,7 @@ function create_game(config) {
 		sound_volume,
 		master_volume,
 		instance_save,
-		instance_get,
+		instance_ref,
 		instances_colliding,
 		instance_create,
 		instance_count,

@@ -31,7 +31,7 @@ create_object({
 			layer.second.instance.z = -1000 + index;
 		});
 
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 	},
 	step(dt, self) {
 		if (!self.controller.game_over) {
@@ -79,7 +79,7 @@ create_object({
 		);
 		instance_save("floor_second", self.second_floor);
 
-		self.controller = instance_get("controller");
+		self.controller = instance_ref("controller");
 	},
 	step(dt, self) {
 		if (!self.controller.game_over) {

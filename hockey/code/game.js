@@ -139,7 +139,7 @@ create_object({
 			const goals = objects_colliding(self, "obj_goal");
 			if (goals.length > 0 && !self.is_resetting) {
 				const goal = goals[0];
-				const controller = instance_get("controller");
+				const controller = instance_ref("controller");
 				if (goal.player === 1) {
 					controller.score_p2++;
 				} else {
