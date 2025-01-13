@@ -101,17 +101,7 @@ type SB_Camera = {
 	viewport_y: number;
 	viewport_width: number;
 	viewport_height: number;
-	follow?: {
-		target: string;
-		offset_x?: number;
-		offset_y?: number;
-		padding?: {
-			left?: number; // 0 to 1
-			right?: number; // 0 to 1
-			top?: number; // 0 to 1
-			bottom?: number; // 0 to 1
-		};
-	};
+	follow?: string;
 	active: boolean;
 };
 
@@ -340,47 +330,13 @@ function create_game(config: SB_Config) {
 
 					// Update camera position if following an object
 					if (camera.follow) {
-						const inst_id = room.object_index[camera.follow.target]?.[0];
+						const inst_id = room.object_index[camera.follow]?.[0];
 						const target = room.instances[inst_id];
 						if (!target) {
-							console.error(`Camera target object not found: ${camera.follow.target}`);
+							console.error(`Camera target object not found: ${camera.follow}`);
 						} else {
-							const offset_x = camera.follow.offset_x || 0;
-							const offset_y = camera.follow.offset_y || 0;
-
-							// Calculate target position (center by default, adjusted by offset)
-							const target_x = target.x - camera.width / 2 + offset_x;
-							const target_y = target.y - camera.height / 2 + offset_y;
-
-							// Handle padding
-							if (camera.follow.padding) {
-								const padding = camera.follow.padding;
-								const left_pad = (padding.left || 0.5) * camera.width;
-								const right_pad = (padding.right || 0.5) * camera.width;
-								const top_pad = (padding.top || 0.5) * camera.height;
-								const bottom_pad = (padding.bottom || 0.5) * camera.height;
-
-								// Calculate target's position relative to camera view
-								const rel_x = target.x - camera.x;
-								const rel_y = target.y - camera.y;
-
-								// Only move camera if target exceeds padding boundaries
-								if (rel_x < left_pad) {
-									camera.x = target.x - left_pad;
-								} else if (rel_x > camera.width - right_pad) {
-									camera.x = target.x - (camera.width - right_pad);
-								}
-
-								if (rel_y < top_pad) {
-									camera.y = target.y - top_pad;
-								} else if (rel_y > camera.height - bottom_pad) {
-									camera.y = target.y - (camera.height - bottom_pad);
-								}
-							} else {
-								// No padding, directly follow target
-								camera.x = target_x;
-								camera.y = target_y;
-							}
+							camera.x = target.x - camera.width / 2;
+							camera.y = target.y - camera.height / 2;
 						}
 					}
 

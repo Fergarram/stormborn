@@ -5,8 +5,8 @@ Object.assign(window, Stormborn);
 
 // Create game runtime object
 const game = create_game({
-	title: "Blank",
-	description: "Actual blank.",
+	title: "Responsive Blank",
+	description: "Actual responsive blank.",
 	image_smoothing_enabled: false, // Set to false for pixel art
 	container: document.getElementById("game"),
 	debug: false,
