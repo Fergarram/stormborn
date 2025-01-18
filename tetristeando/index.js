@@ -5,8 +5,8 @@ Object.assign(window, Stormborn);
 
 // Create game runtime object
 const game = create_game({
-	title: "Responsive Blank",
-	description: "Actual responsive blank.",
+	title: "Split Tetris",
+	description: "Actual tetris 2.",
 	image_smoothing_enabled: false, // Set to false for pixel art
 	container: document.getElementById("game"),
 	debug: false,

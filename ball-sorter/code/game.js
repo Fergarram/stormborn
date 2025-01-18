@@ -1,6 +1,6 @@
 // SPRITES
 create_sprite({
-	id: "balls",
+	id: "spr_balls",
 	filepath: "assets/balls.png",
 	frames: 6,
 	frame_width: 24,
@@ -10,7 +10,7 @@ create_sprite({
 });
 
 create_sprite({
-	id: "player",
+	id: "spr_player",
 	filepath: "assets/player.png",
 	frames: 4,
 	frame_width: 70,
@@ -20,7 +20,7 @@ create_sprite({
 });
 
 create_sprite({
-	id: "buckets",
+	id: "spr_buckets",
 	filepath: "assets/buckets.png",
 	frames: 6,
 	frame_width: 53,
@@ -32,10 +32,10 @@ create_sprite({
 // OBJECTS
 create_object({
 	id: "obj_ball",
-	sprite: "balls",
+	sprite: "spr_balls",
 	collision_mask: { type: "circle", geom: [12] },
 	create(self) {
-		self.dx = Math.random() * 2 - 1; // Random direction
+		self.dx = Math.random() * 2 - 1;
 		self.dy = 1;
 		self.speed = 3;
 		self.color = Math.floor(Math.random() * 6);
@@ -51,18 +51,14 @@ create_object({
 			if (!self.dropped) {
 				self.x += self.dx * self.speed;
 
-				// Bounce off walls
 				if (self.x < 12 || self.x > 308) {
 					self.dx *= -1;
 				}
 			}
 
-			// Check bucket collisions with proper y-position check
 			if (self.y >= 180) {
-				// Only check when near buckets
 				const buckets = objects_colliding(self, "obj_bucket");
-
-				if (buckets && buckets.length > 0) {
+				if (buckets.length > 0) {
 					const bucket = buckets[0];
 					if (bucket.color === self.color) {
 						instance_destroy(self);
@@ -76,11 +72,9 @@ create_object({
 	},
 });
 
-// PLAYER
-
 create_object({
 	id: "obj_player",
-	sprite: "player",
+	sprite: "spr_player",
 	collision_mask: { type: "rect", geom: [-35, -30, 70, 60] },
 	create(self) {
 		self.x = Math.random() * 220 + 50;
@@ -90,28 +84,24 @@ create_object({
 		self.image_speed = 0;
 		self.facing_right = true;
 		self.transition_timer = 0;
-		self.transition_duration = 6; // Adjust this value to control how long the front-facing frame is shown
+		self.transition_duration = 6;
 
-		// Create the hands
-		const hands = instance_create("obj_player_hands", self.x, self.y);
+		instance_create("obj_player_hands", self.x, self.y);
 		instance_ref("player", self);
 	},
 	step(dt, self) {
-		const room = room_current();
-		// Movement
-		if (gm.keys_pressed.f || gm.keys_pressed.F) self.speed *= 2;
-
-		let moving_left = gm.keys_pressed.ArrowLeft;
-		let moving_right = gm.keys_pressed.ArrowRight;
+		if (gm.keydown.f || gm.keydown.F) {
+			self.speed *= 2;
+		}
 
 		if (self.transition_timer <= 0) {
-			if (moving_left) {
+			if (gm.keydown.ArrowLeft) {
 				self.x -= self.speed;
 				if (self.facing_right) {
 					self.transition_timer = self.transition_duration;
 					self.facing_right = false;
 				}
-			} else if (moving_right) {
+			} else if (gm.keydown.ArrowRight) {
 				self.x += self.speed;
 				if (!self.facing_right) {
 					self.transition_timer = self.transition_duration;
@@ -120,20 +110,19 @@ create_object({
 			}
 		}
 
-		// Keep in bounds
 		self.x = Math.max(35, Math.min(285, self.x));
 
-		// Update sprite
 		if (self.transition_timer > 0) {
-			self.image_index = 1; // Front-facing frame
+			self.image_index = 1;
 			self.transition_timer--;
-			self.speed = 1; // Slow down while transitioning
+			self.speed = 1;
 		} else {
-			self.image_index = self.facing_right ? 0 : 2; // Right-facing or left-facing frame
-			self.speed = 3; // Speed up when not transitioning
+			self.image_index = self.facing_right ? 0 : 2;
+			self.speed = 3;
 		}
 	},
 });
+
 create_object({
 	id: "obj_player_hands",
 	collision_mask: { type: "rect", geom: [-10, -10, 20, 20] },
@@ -144,15 +133,12 @@ create_object({
 		const player = instance_ref("player");
 		if (player) {
 			if (player.transition_timer > 0) {
-				// During transition, place hands at the center
 				player.z = 0;
 				self.x = player.x;
 			} else if (player.facing_right) {
-				// Facing right
 				player.z = 1;
 				self.x = player.x + 25;
 			} else {
-				// Facing left
 				player.z = 1;
 				self.x = player.x - 25;
 			}
@@ -170,11 +156,10 @@ create_object({
 			}
 		}
 
-		// Release the ball when Space is pressed
-		if (gm.keys_pressed.ArrowDown && self.held_ball) {
+		if (gm.keydown.ArrowDown && self.held_ball) {
 			self.held_ball.held = false;
 			self.held_ball.dropped = true;
-			self.held_ball.dy = 1; // Reset vertical speed
+			self.held_ball.dy = 1;
 			self.held_ball = null;
 		}
 	},
@@ -182,7 +167,7 @@ create_object({
 
 create_object({
 	id: "obj_bucket",
-	sprite: "buckets",
+	sprite: "spr_buckets",
 	collision_mask: { type: "rect", geom: [-26, -30, 53, 60] },
 	create(self) {
 		self.y = 180;
@@ -190,14 +175,12 @@ create_object({
 		self.image_speed = 0;
 	},
 	step(dt, self) {
-		self.image_index = self.color ? self.color : 0;
+		self.image_index = self.color || 0;
 	},
 });
 
-// GAME CONTROLLER
-
 create_object({
-	id: "obj_game_controller",
+	id: "obj_controller",
 	create(self) {
 		self.spawn_timer = 0;
 		self.spawn_interval = 100;
@@ -205,13 +188,10 @@ create_object({
 	step(dt, self) {
 		const room = room_current();
 
-		// Ball spawning
 		if (!room.game_over) {
 			self.spawn_timer++;
 			if (self.spawn_timer >= self.spawn_interval) {
-				const ball = instance_create("obj_ball");
-				ball.x = Math.random() * 280 + 20;
-				ball.y = -12 + 12;
+				const ball = instance_create("obj_ball", Math.random() * 280 + 20, -12);
 				self.spawn_timer = 0;
 			}
 		} else {
@@ -226,29 +206,15 @@ create_object({
 	},
 });
 
-// Create room
 create_room({
 	id: "rm_game",
 	width: 320,
 	height: 240,
-	camera: {
-		x: 0,
-		y: 0,
+	screen: {
 		width: 320,
 		height: 240,
-		get viewport_width() {
-			const widthRatio = window.innerWidth / 320;
-			const heightRatio = window.innerHeight / 240;
-			const scale = Math.min(widthRatio, heightRatio);
-			return Math.floor(320 * scale);
-		},
-		get viewport_height() {
-			const widthRatio = window.innerWidth / 320;
-			const heightRatio = window.innerHeight / 240;
-			const scale = Math.min(widthRatio, heightRatio);
-			return Math.floor(240 * scale);
-		},
-		// follow: "obj_player", // Uncomment to follow object
+		final_width: 640,
+		final_height: 480,
 	},
 	fps: 60,
 	bg_color: "#808080",
@@ -256,27 +222,27 @@ create_room({
 		const room = room_current();
 		room.score = 0;
 		room.game_over = false;
+
 		instance_create("obj_player");
-		instance_create("obj_game_controller");
+		instance_create("obj_controller");
 
-		// Create an array of available colors
-		const availableColors = [0, 1, 2, 3, 4, 5];
+		const available_colors = [0, 1, 2, 3, 4, 5];
+		for (let i = 0; i < 6; i++) {
+			const color_index = Math.floor(Math.random() * available_colors.length);
+			const color = available_colors[color_index];
+			available_colors.splice(color_index, 1);
 
-		// Create buckets with evenly spaced x positions and unique colors
-		Array.from({ length: 6 }, (_, index) => {
-			// Randomly select a color from the available colors
-			const colorIndex = Math.floor(Math.random() * availableColors.length);
-			const color = availableColors[colorIndex];
-			// Remove the selected color from the available colors
-			availableColors.splice(colorIndex, 1);
-
-			const bucket = instance_create("obj_bucket", 26 + index * 53, 0);
+			const bucket = instance_create("obj_bucket", 26 + i * 53);
 			bucket.color = color;
-		});
+		}
+
+		return [];
 	},
 });
 
-// Start the game
-run_game(() => {
-	room_goto("rm_game");
+// START THE GAME
+window.addEventListener("load", () => {
+	run_game(() => {
+		room_goto("rm_game");
+	});
 });

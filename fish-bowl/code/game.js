@@ -1,3 +1,8 @@
+// CONFIG
+const ROOM_WIDTH = 64;
+const ROOM_HEIGHT = 64;
+const SCALE = 4;
+
 // SPRITES
 create_sprite({
     id: "spr_bowl",
@@ -123,8 +128,8 @@ create_object({
         self.angle_lerp_speed = 0.1;
         self.max_angle = 20;
         self.bubble_timer = 0;
-        self.bubble_delay = 45; // Frames between bubble spawns
-        self.bubble_chance = 0.4; // 40% chance to spawn bubble when timer hits
+        self.bubble_delay = 45;
+        self.bubble_chance = 0.4;
         self.current_bubble_chance = 0.4;
         self.consecutive_moves = 0;
     },
@@ -132,44 +137,33 @@ create_object({
         self.move_timer++;
         
         if (self.move_timer >= self.move_delay) {
-            // Track consecutive moves
             self.consecutive_moves++;
-
-            // Increase bubble chance with consecutive moves
             self.current_bubble_chance = Math.min(0.9, self.bubble_chance + (self.consecutive_moves * 0.1));
 
-            // Spawn 1-3 bubbles based on movement type
             let bubble_count = 1;
-            
             if (self.consecutive_moves > 3 || self.move_delay < 60) {
                 bubble_count = Math.floor(Math.random() * 3) + 1;
             }
 
-            // Spawn bubbles
             if (Math.random() < self.current_bubble_chance) {
                 for (let i = 0; i < bubble_count; i++) {
                     const mouth_offset = 4;
                     const spawn_x = self.x + (self.facing_right ? mouth_offset : -mouth_offset);
                     const spawn_y = self.y;
                     
-                    // Slight delay between multiple bubbles
                     setTimeout(() => {
                         instance_create("obj_bubble", spawn_x, spawn_y);
                     }, i * 100);
                 }
             }
 
-            // Randomize speed for new movement
             let rand = Math.random();
             if (rand < 0.6) {
-                // Normal speed with slight variation
                 self.speed = self.base_speed * (0.8 + Math.random() * 0.4);
             } else {
-                // Faster dart
                 self.speed = self.base_speed * (1.5 + Math.random() * 0.5);
             }
 
-            // Rest of the original movement code
             let angle = Math.random() * Math.PI * 2;
             rand = Math.random();
             let distance;
@@ -253,15 +247,13 @@ create_object({
 // CREATE ROOM
 create_room({
     id: "rm_game",
-    width: config.viewport_width / config.scale,
-    height: config.viewport_height / config.scale,
-    camera: {
-        x: 0,
-        y: 0,
-        width: config.viewport_width / config.scale,
-        height: config.viewport_height / config.scale,
-        viewport_width: config.viewport_width,
-        viewport_height: config.viewport_height,
+    width: ROOM_WIDTH,
+    height: ROOM_HEIGHT,
+    screen: {
+        width: ROOM_WIDTH,
+        height: ROOM_HEIGHT,
+        final_width: ROOM_WIDTH * SCALE,
+        final_height: ROOM_HEIGHT * SCALE
     },
     fps: 30,
     bg_color: "transparent",
@@ -270,15 +262,17 @@ create_room({
             {
                 id: "obj_bowl",
                 x: 0,
-                y: 0
+                y: 0,
+                z: 1
             },
             {
                 id: "obj_fish",
                 x: 32,
-                y: 32
+                y: 32,
+                z: 3
             }
         ];
-    },
+    }
 });
 
 // START THE GAME

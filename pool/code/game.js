@@ -1,3 +1,8 @@
+// CONSTANTS
+const VIEWPORT_WIDTH = 320;
+const VIEWPORT_HEIGHT = 240;
+const SCALE = 1;
+
 // OBJECTS
 create_object({
 	id: "obj_ctrl",
@@ -7,29 +12,28 @@ create_object({
 		self.game_over = false;
 		self.shots_taken = 0;
 		self.show_results = false;
-		instance_save("obj_ctrl", self);
+		instance_ref("obj_ctrl", self);
 	},
 	draw(self) {
-		if (self.show_results) {
-			// Draw text
-			gm.ctx.fillStyle = "white";
-			gm.ctx.font = "32px Arial";
-			gm.ctx.textAlign = "center";
-			const center_x = config.viewport_width / config.scale / 2;
-			const center_y = config.viewport_height / config.scale / 2;
+        if (self.show_results) {
+            gm.ctx.fillStyle = "white";
+            gm.ctx.font = "32px Arial";
+            gm.ctx.textAlign = "center";
+            const center_x = VIEWPORT_WIDTH / SCALE / 2;
+            const center_y = VIEWPORT_HEIGHT / SCALE / 2;
 
-			gm.ctx.font = "16px Arial";
-			gm.ctx.fillText(self.balls_remaining > 0 ? "YOU LOST WITH" : "YOU WON WITH", center_x, center_y - 36);
-			gm.ctx.font = "32px Arial";
-			gm.ctx.fillText(`${self.shots_taken} MOVE${self.shots_taken === 1 ? "" : "S"}`, center_x, center_y);
-			gm.ctx.font = "14px Arial";
-			gm.ctx.fillText('Press "..." to restart', center_x, center_y + 64);
-		}
-	},
+            gm.ctx.font = "16px Arial";
+            gm.ctx.fillText(self.balls_remaining > 0 ? "YOU LOST WITH" : "YOU WON WITH", center_x, center_y - 36);
+            gm.ctx.font = "32px Arial"; 
+            gm.ctx.fillText(`${self.shots_taken} MOVE${self.shots_taken === 1 ? "" : "S"}`, center_x, center_y);
+            gm.ctx.font = "14px Arial";
+            gm.ctx.fillText('Press "..." to restart', center_x, center_y + 64);
+        }
+    },
 	step(dt, self) {
 		if (self.show_results) {
 			const keys = ["0", "Space", "*", "#"];
-			if (keys.some((key) => gm.keys_pressed[key])) {
+			if (keys.some((key) => gm.keydown[key])) {
 				room_restart();
 			}
 		}
@@ -162,20 +166,20 @@ create_object({
 		if (Math.abs(self.speed_y) < self.min_speed) self.speed_y = 0;
 
 		// Bounce off walls
-		if (self.x < wall_size || self.x > config.viewport_width / config.scale - wall_size) {
+		if (self.x < wall_size || self.x > VIEWPORT_WIDTH / SCALE - wall_size) {
 			self.speed_x *= -self.bounce_factor;
 			self.acc_x = 0;
-			self.x = Math.min(Math.max(self.x, wall_size), config.viewport_width / config.scale - wall_size);
+			self.x = Math.min(Math.max(self.x, wall_size), VIEWPORT_WIDTH / SCALE - wall_size);
 
 			// Play wall hit sound with volume based on speed
 			const wall_hit_speed = Math.abs(self.speed_x);
 			const volume = Math.max(0.05, Math.min(0.3, wall_hit_speed / 5));
 			play_sound("snd_wall", { volume });
 		}
-		if (self.y < wall_size || self.y > config.viewport_height / config.scale - wall_size) {
+		if (self.y < wall_size || self.y > VIEWPORT_HEIGHT / SCALE - wall_size) {
 			self.speed_y *= -self.bounce_factor;
 			self.acc_y = 0;
-			self.y = Math.min(Math.max(self.y, wall_size), config.viewport_height / config.scale - wall_size);
+			self.y = Math.min(Math.max(self.y, wall_size), VIEWPORT_HEIGHT / SCALE - wall_size);
 
 			const wall_hit_speed = Math.abs(self.speed_y);
 			const volume = Math.max(0.05, Math.min(0.3, wall_hit_speed / 5));
@@ -338,7 +342,7 @@ create_object({
 			self.toggle_cooldown--;
 		}
 
-		if ((gm.keys_pressed["*"] || gm.keys_pressed["a"]) && self.toggle_cooldown === 0) {
+		if ((gm.keydown["*"] || gm.keydown["A"]) && self.toggle_cooldown === 0) {
 			self.show_guide_line = !self.show_guide_line;
 			self.toggle_cooldown = self.toggle_cooldown_max; // Reset cooldown
 		}
@@ -390,15 +394,15 @@ create_object({
 			// Only allow controls when cue is visible enough
 			if (self.image_alpha > 0.5) {
 				// Update target angle
-				if (gm.keys_pressed["4"] || gm.keys_pressed["2"] || gm.keys_pressed["ArrowLeft"]) {
+				if (gm.keydown["4"] || gm.keydown["2"] || gm.keydown["ArrowLeft"]) {
 					self.target_angle += self.rotation_speed;
 				}
-				if (gm.keys_pressed["6"] || gm.keys_pressed["8"] || gm.keys_pressed["ArrowRight"]) {
+				if (gm.keydown["6"] || gm.keydown["8"] || gm.keydown["ArrowRight"]) {
 					self.target_angle -= self.rotation_speed;
 				}
 
 				// Handle shooting
-				if (gm.keys_pressed["5"] || gm.keys_pressed["ArrowUp"] || gm.keys_pressed["ArrowDown"]) {
+				if (gm.keydown["5"] || gm.keydown["ArrowUp"] || gm.keydown["ArrowDown"]) {
 					self.pulling = true;
 					self.power = Math.min(self.power + 0.5, self.max_power);
 				} else if (self.pulling) {
@@ -503,76 +507,67 @@ create_object({
 // ROOM
 create_room({
 	id: "rm_game",
-	width: config.viewport_width / config.scale,
-	height: config.viewport_height / config.scale,
+	width: VIEWPORT_WIDTH / SCALE,
+    height: VIEWPORT_HEIGHT / SCALE,
+    screen: {
+        width: VIEWPORT_WIDTH / SCALE,
+        height: VIEWPORT_HEIGHT / SCALE,
+        final_width: VIEWPORT_WIDTH,
+        final_height: VIEWPORT_HEIGHT
+    },
 	fps: 60,
 	bg_color: "#000",
 	setup() {
-		// Create controller
-		instance_create("obj_ctrl", 0, 0, 1000);
+        // Create controller
+        instance_create("obj_ctrl", 0, 0, 1000);
 
-		// Create white ball
-		const white_ball = create_ball(80, 120, 0);
-		instance_save("white_ball", white_ball);
+        // Create white ball
+        const white_ball = create_ball(80, 120, 0);
+        instance_ref("white_ball", white_ball);
 
-		// Create rack of balls in triangle formation
-		const rack_center_x = 200; // Adjust this value to position the rack horizontally
-		const rack_center_y = config.viewport_height / config.scale / 2; // Center vertically
-		const ball_spacing = 16; // Slightly adjust spacing between balls
+        // Rest of setup remains the same
+        const rack_center_x = 200;
+        const rack_center_y = VIEWPORT_HEIGHT / SCALE / 2;
+        const ball_spacing = 16;
 
-		// Standard 8-ball rack arrangement
-		const rack_order = [1, 2, 3, 4, 5, 10, 7, 8, 9, 6];
-		let ball_index = 0;
+        // Create rack of balls
+        const rack_order = [1, 2, 3, 4, 5, 10, 7, 8, 9, 6];
+        let ball_index = 0;
 
-		for (let row = 0; row < 4; row++) {
-			for (let col = 0; col <= row; col++) {
-				if (ball_index < rack_order.length) {
-					// Calculate position relative to rack center
-					const ball_x = Math.round(rack_center_x + row * ball_spacing);
-					const ball_y = Math.round(rack_center_y + (col * ball_spacing - (row * ball_spacing) / 2));
-					create_ball(ball_x, ball_y, rack_order[ball_index]);
-					ball_index++;
-				}
-			}
-		}
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col <= row; col++) {
+                if (ball_index < rack_order.length) {
+                    const ball_x = Math.round(rack_center_x + row * ball_spacing);
+                    const ball_y = Math.round(rack_center_y + (col * ball_spacing - (row * ball_spacing) / 2));
+                    create_ball(ball_x, ball_y, rack_order[ball_index]);
+                    ball_index++;
+                }
+            }
+        }
 
-		// Calculate hole positions
-		const wall_inset = 12;
-		const table_width = config.viewport_width / config.scale;
-		const table_height = config.viewport_height / config.scale;
+        // Create holes
+        const wall_inset = 12;
+        const table_width = VIEWPORT_WIDTH / SCALE;
+        const table_height = VIEWPORT_HEIGHT / SCALE;
 
-		// Create corner and middle pocket holes
-		const hole_positions = [
-			// Top left
-			{ x: wall_inset + 3, y: wall_inset + 3 },
-			// Top middle
-			{ x: table_width / 2, y: wall_inset },
-			// Top right
-			{ x: table_width - wall_inset - 3, y: wall_inset + 3 },
-			// Bottom left
-			{ x: wall_inset + 3, y: table_height - wall_inset - 3 },
-			// Bottom middle
-			{ x: table_width / 2, y: table_height - wall_inset },
-			// Bottom right
-			{ x: table_width - wall_inset - 3, y: table_height - wall_inset - 3 },
-		];
+        const hole_positions = [
+            { x: wall_inset + 3, y: wall_inset + 3 },
+            { x: table_width / 2, y: wall_inset },
+            { x: table_width - wall_inset - 3, y: wall_inset + 3 },
+            { x: wall_inset + 3, y: table_height - wall_inset - 3 },
+            { x: table_width / 2, y: table_height - wall_inset },
+            { x: table_width - wall_inset - 3, y: table_height - wall_inset - 3 },
+        ];
 
-		// Create the holes
-		for (const pos of hole_positions) {
-			instance_create("obj_hole", pos.x, pos.y);
-		}
+        for (const pos of hole_positions) {
+            instance_create("obj_hole", pos.x, pos.y);
+        }
 
-		// Create cue
-		return [{ id: "obj_frame", z: -1 }, { id: "obj_cue" }];
-	},
-	camera: {
-		x: 0,
-		y: 0,
-		width: config.viewport_width / config.scale,
-		height: config.viewport_height / config.scale,
-		viewport_width: config.viewport_width,
-		viewport_height: config.viewport_height,
-	},
+        return [
+            { id: "obj_frame", z: -1 },
+            { id: "obj_cue" }
+        ];
+    }
 });
 
 // START THE GAME

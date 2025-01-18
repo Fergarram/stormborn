@@ -9,7 +9,7 @@ const game = create_game({
 	description: "Flappy bird clone",
 	image_smoothing_enabled: false, // Set to false for pixel art
 	container: document.getElementById("game"),
-	debug: false,
+	debug: true,
 });
 
 // Expose all game runtime functions to the global scope

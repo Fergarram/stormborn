@@ -10,14 +10,8 @@ const game = create_game({
 	image_smoothing_enabled: false, // Set to false for pixel art
 	container: document.getElementById("game"),
 	debug: false,
+	culling_enabled: false,
 });
 
 // Expose all game runtime functions to the global scope
 Object.assign(window, game);
-
-// CONFIG
-window.config = {
-	viewport_width: 320,
-	viewport_height: 240,
-	scale: 1,
-};

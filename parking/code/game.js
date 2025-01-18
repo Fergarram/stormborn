@@ -1,3 +1,8 @@
+// CONFIG
+const ROOM_WIDTH = 320;
+const ROOM_HEIGHT = 240;
+const SCALE = 2;
+
 // CONSTANTS
 const CAR = {
 	WIDTH: 40,
@@ -59,13 +64,13 @@ create_object({
 			-10,
 		);
 
-		instance_save("car", self);
+		instance_ref("car", self);
 	},
 	step(dt, self) {
 		// Acceleration
-		if (gm.keys_pressed.ArrowUp || gm.keys_pressed["5"]) {
+		if (gm.keydown.ArrowUp || gm.keydown["5"]) {
 			self.speed = Math.min(self.speed + self.acceleration, self.max_speed);
-		} else if (gm.keys_pressed.ArrowDown) {
+		} else if (gm.keydown.ArrowDown) {
 			self.speed = Math.max(self.speed - self.acceleration, -self.max_speed);
 		} else {
 			// Apply friction
@@ -76,9 +81,9 @@ create_object({
 		}
 
 		// Steering
-		if (gm.keys_pressed.ArrowRight) {
+		if (gm.keydown.ArrowRight) {
 			self.wheel_angle = Math.min(self.wheel_angle + self.turn_speed, self.max_wheel_angle);
-		} else if (gm.keys_pressed.ArrowLeft) {
+		} else if (gm.keydown.ArrowLeft) {
 			self.wheel_angle = Math.max(self.wheel_angle - self.turn_speed, -self.max_wheel_angle);
 		}
 
@@ -235,7 +240,7 @@ create_object({
 			// Check if car corners are within the parking spot bounds
 			let corners_inside = 0;
 			for (const corner of car_corners) {
-				if (point_in_polygon(corner, spot_corners)) {
+				if (point_in_polygon(corner.x, corner.y, spot_corners.map((c) => [c.x, c.y]).flat())) {
 					corners_inside++;
 				}
 			}
@@ -248,10 +253,8 @@ create_object({
 				self.occupation_timer += dt;
 				if (self.occupation_timer >= PARKING_SUCCESS_DELAY) {
 					self.occupied = true;
-					// Randomize new position
-					self.x = Math.random() * (config.viewport_width - 100) + 50;
-					self.y = Math.random() * (config.viewport_height - 100) + 50;
-					// Use only straight angles (0, 90, 180, 270)
+					self.x = Math.random() * (ROOM_WIDTH - 100) + 50;
+					self.y = Math.random() * (ROOM_HEIGHT - 100) + 50;
 					self.image_angle = Math.floor(Math.random() * 4) * 90;
 					self.occupation_timer = 0;
 				}
@@ -260,10 +263,6 @@ create_object({
 				self.occupied = false;
 				self.highlight = false;
 			}
-		} else {
-			self.occupation_timer = 0;
-			self.occupied = false;
-			self.highlight = false;
 		}
 	},
 	draw(self) {
@@ -282,15 +281,13 @@ create_object({
 // Create room
 create_room({
 	id: "rm_game",
-	width: config.viewport_width / config.scale,
-	height: config.viewport_height / config.scale,
-	camera: {
-		x: 0,
-		y: 0,
-		width: config.viewport_width / config.scale,
-		height: config.viewport_height / config.scale,
-		viewport_width: config.viewport_width,
-		viewport_height: config.viewport_height,
+	width: ROOM_WIDTH,
+	height: ROOM_HEIGHT,
+	screen: {
+		width: ROOM_WIDTH,
+		height: ROOM_HEIGHT,
+		final_width: ROOM_WIDTH * SCALE,
+		final_height: ROOM_HEIGHT * SCALE,
 	},
 	fps: 60,
 	bg_color: "#555555",
@@ -317,18 +314,3 @@ window.addEventListener("load", () => {
 		room_goto("rm_game");
 	});
 });
-
-// UTILS
-function point_in_polygon(point, polygon) {
-	let inside = false;
-	for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-		const xi = polygon[i].x,
-			yi = polygon[i].y;
-		const xj = polygon[j].x,
-			yj = polygon[j].y;
-
-		const intersect = yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
-		if (intersect) inside = !inside;
-	}
-	return inside;
-}

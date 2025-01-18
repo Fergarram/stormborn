@@ -16,8 +16,6 @@ const game = create_game({
 Object.assign(window, game);
 
 // CONFIG
-window.config = {
-	viewport_width: 240,
-	viewport_height: 320,
-	scale: 1,
-};
+window.VIEWPORT_WIDTH = 240;
+window.VIEWPORT_HEIGHT = 320;
+window.SCALE = 1;

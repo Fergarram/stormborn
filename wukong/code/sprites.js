@@ -132,7 +132,7 @@ create_sprite({
 	filepath: "assets/dark_background.png",
 	frames: 1,
 	frame_width: 280,
-	frame_height: config.viewport_height,
+	frame_height: VIEWPORT_HEIGHT,
 	origin_x: 0,
 	origin_y: 0,
 });
@@ -142,7 +142,7 @@ create_sprite({
 	filepath: "assets/mist.png",
 	frames: 1,
 	frame_width: 280,
-	frame_height: config.viewport_height,
+	frame_height: VIEWPORT_HEIGHT,
 	origin_x: 0,
 	origin_y: 0,
 });
@@ -152,7 +152,7 @@ create_sprite({
 	filepath: "assets/mist0.png",
 	frames: 1,
 	frame_width: 280,
-	frame_height: config.viewport_height,
+	frame_height: VIEWPORT_HEIGHT,
 	origin_x: 0,
 	origin_y: 0,
 });

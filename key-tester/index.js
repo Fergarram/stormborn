@@ -5,8 +5,8 @@ Object.assign(window, Stormborn);
 
 // Create game runtime object
 const game = create_game({
-	title: "Blank",
-	description: "Actual blank.",
+	title: "Key Tester",
+	description: "Prints key presses on the screen.",
 	image_smoothing_enabled: false, // Set to false for pixel art
 	container: document.getElementById("game"),
 	debug: false,
@@ -14,10 +14,3 @@ const game = create_game({
 
 // Expose all game runtime functions to the global scope
 Object.assign(window, game);
-
-// CONFIG
-window.config = {
-	viewport_width: 320,
-	viewport_height: 240,
-	scale: 1,
-};
