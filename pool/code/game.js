@@ -1,7 +1,7 @@
 // CONSTANTS
 const VIEWPORT_WIDTH = 320;
 const VIEWPORT_HEIGHT = 240;
-const SCALE = 1;
+const SCALE = 2;
 
 // OBJECTS
 create_object({
@@ -19,8 +19,8 @@ create_object({
             gm.ctx.fillStyle = "white";
             gm.ctx.font = "32px Arial";
             gm.ctx.textAlign = "center";
-            const center_x = VIEWPORT_WIDTH / SCALE / 2;
-            const center_y = VIEWPORT_HEIGHT / SCALE / 2;
+            const center_x = VIEWPORT_WIDTH / 2;
+            const center_y = VIEWPORT_HEIGHT / 2;
 
             gm.ctx.font = "16px Arial";
             gm.ctx.fillText(self.balls_remaining > 0 ? "YOU LOST WITH" : "YOU WON WITH", center_x, center_y - 36);
@@ -166,20 +166,20 @@ create_object({
 		if (Math.abs(self.speed_y) < self.min_speed) self.speed_y = 0;
 
 		// Bounce off walls
-		if (self.x < wall_size || self.x > VIEWPORT_WIDTH / SCALE - wall_size) {
+		if (self.x < wall_size || self.x > VIEWPORT_WIDTH - wall_size) {
 			self.speed_x *= -self.bounce_factor;
 			self.acc_x = 0;
-			self.x = Math.min(Math.max(self.x, wall_size), VIEWPORT_WIDTH / SCALE - wall_size);
+			self.x = Math.min(Math.max(self.x, wall_size), VIEWPORT_WIDTH - wall_size);
 
 			// Play wall hit sound with volume based on speed
 			const wall_hit_speed = Math.abs(self.speed_x);
 			const volume = Math.max(0.05, Math.min(0.3, wall_hit_speed / 5));
 			play_sound("snd_wall", { volume });
 		}
-		if (self.y < wall_size || self.y > VIEWPORT_HEIGHT / SCALE - wall_size) {
+		if (self.y < wall_size || self.y > VIEWPORT_HEIGHT - wall_size) {
 			self.speed_y *= -self.bounce_factor;
 			self.acc_y = 0;
-			self.y = Math.min(Math.max(self.y, wall_size), VIEWPORT_HEIGHT / SCALE - wall_size);
+			self.y = Math.min(Math.max(self.y, wall_size), VIEWPORT_HEIGHT - wall_size);
 
 			const wall_hit_speed = Math.abs(self.speed_y);
 			const volume = Math.max(0.05, Math.min(0.3, wall_hit_speed / 5));
@@ -452,7 +452,7 @@ create_object({
 		gm.ctx.moveTo(start_x, start_y);
 		gm.ctx.lineTo(end_x, end_y);
 		gm.ctx.strokeStyle = `#Dfffdf`;
-		gm.ctx.lineWidth = 2;
+		gm.ctx.lineWidth = 3;
 
 		// Save current globalAlpha
 		const current_alpha = gm.ctx.globalAlpha;
@@ -507,13 +507,13 @@ create_object({
 // ROOM
 create_room({
 	id: "rm_game",
-	width: VIEWPORT_WIDTH / SCALE,
-    height: VIEWPORT_HEIGHT / SCALE,
+	width: VIEWPORT_WIDTH,
+    height: VIEWPORT_HEIGHT,
     screen: {
-        width: VIEWPORT_WIDTH / SCALE,
-        height: VIEWPORT_HEIGHT / SCALE,
-        final_width: VIEWPORT_WIDTH,
-        final_height: VIEWPORT_HEIGHT
+        width: VIEWPORT_WIDTH,
+        height: VIEWPORT_HEIGHT,
+        final_width: VIEWPORT_WIDTH * 2,
+        final_height: VIEWPORT_HEIGHT * 2,
     },
 	fps: 60,
 	bg_color: "#000",
@@ -527,7 +527,7 @@ create_room({
 
         // Rest of setup remains the same
         const rack_center_x = 200;
-        const rack_center_y = VIEWPORT_HEIGHT / SCALE / 2;
+        const rack_center_y = VIEWPORT_HEIGHT / 2;
         const ball_spacing = 16;
 
         // Create rack of balls
@@ -547,8 +547,8 @@ create_room({
 
         // Create holes
         const wall_inset = 12;
-        const table_width = VIEWPORT_WIDTH / SCALE;
-        const table_height = VIEWPORT_HEIGHT / SCALE;
+        const table_width = VIEWPORT_WIDTH;
+        const table_height = VIEWPORT_HEIGHT;
 
         const hole_positions = [
             { x: wall_inset + 3, y: wall_inset + 3 },

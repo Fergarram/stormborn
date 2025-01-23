@@ -8,6 +8,7 @@ const game = create_game({
 	title: "Poll",
 	description: "Poll game",
 	image_smoothing_enabled: false, // Set to false for pixel art
+	shape_smoothing_enabled: false,
 	container: document.getElementById("game"),
 	debug: false,
 	culling_enabled: false,

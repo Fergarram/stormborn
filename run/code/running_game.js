@@ -1,7 +1,7 @@
 // CONFIG
 const VIEWPORT_WIDTH = 320;
 const VIEWPORT_HEIGHT = 288;
-const SCALE = 1;
+const SCALE = 2;
 
 // SPEED MODIFIERS
 const KARINA = 3.3; // MAX SPEED
